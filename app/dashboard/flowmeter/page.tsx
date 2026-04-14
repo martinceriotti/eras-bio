@@ -37,17 +37,11 @@ export default function FlowmeterPage() {
     const init = async () => {
       // Get user
       const { data: { user } } = await supabase.auth.getUser()
+      
       if (user) {
         setUserId(user.id)
-        
-        // Check role
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single()
-        
-        setCanEdit(profile?.role === 'operador' || profile?.role === 'admin')
+        // Para el MVP, cualquier usuario autenticado puede editar
+        setCanEdit(true)
       }
 
       // Fetch recent readings (last 30 days)
