@@ -11,10 +11,11 @@ jobs:
     steps:
       - name: Backup
         run: |
-          pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
-            --clean --if-exists --quote-all-identifiers \
-            -f backup_$(date +%Y%m%d).sql
-
+          PGSSLMODE=require pg_dump "postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres" \
+          --no-password \
+          -f backup_$(date +%Y%m%d).sql
+          env:
+            PGDATABASE: postgres
       - name: Subir backup como artifact
         uses: actions/upload-artifact@v4
         with:
