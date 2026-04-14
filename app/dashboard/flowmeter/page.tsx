@@ -88,7 +88,7 @@ export default function FlowmeterPage() {
     try {
       if (currentReading) {
         // Update
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('flowmeter_readings')
           .update({ 
             accumulated_value: value,
@@ -98,7 +98,9 @@ export default function FlowmeterPage() {
           .select()
           .single()
 
-        if (data) {
+        if (error) {
+          alert('Error al actualizar: ' + error.message)
+        } else if (data) {
           setCurrentReading(data)
           setRecentReadings(prev => 
             prev.map(r => r.id === data.id ? data : r)
@@ -106,7 +108,7 @@ export default function FlowmeterPage() {
         }
       } else {
         // Insert
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('flowmeter_readings')
           .insert({
             reading_date: dateStr,
@@ -116,13 +118,15 @@ export default function FlowmeterPage() {
           .select()
           .single()
 
-        if (data) {
+        if (error) {
+          alert('Error al guardar: ' + error.message)
+        } else if (data) {
           setCurrentReading(data)
           setRecentReadings(prev => [data, ...prev])
         }
       }
     } catch (error) {
-      console.error('Error saving flowmeter reading:', error)
+      alert('Error inesperado al guardar')
     } finally {
       setSaving(false)
     }
