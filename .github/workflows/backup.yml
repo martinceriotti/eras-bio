@@ -28,6 +28,8 @@ jobs:
             --schema=public \
             --no-owner \
             --no-privileges \
+            --clean \
+            --if-exists \
             -f backup_$(date +%Y%m%d).sql
             
       - name: Subir backup como artifact
