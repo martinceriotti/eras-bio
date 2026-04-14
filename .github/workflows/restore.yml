@@ -1,0 +1,43 @@
+name: Supabase Restore
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_id:
+        description: 'ID del artifact a restaurar (ej: 6430154701)'
+        required: true
+      run_id:
+        description: 'ID del run donde está el artifact (ej: 24404900272)'
+        required: true
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar PostgreSQL 17
+        run: |
+          sudo apt-get install -y curl ca-certificates
+          curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Descargar artifact
+        uses: actions/download-artifact@v4
+        with:
+          artifact-id: ${{ github.event.inputs.artifact_id }}
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: restore/
+
+      - name: Restore
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGSSLMODE: require
+          DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+        run: |
+          BACKUP_FILE=$(find restore/ -name "*.sql" | head -1)
+          echo "Restaurando: $BACKUP_FILE"
+          /usr/lib/postgresql/17/bin/psql \
+            "postgresql://postgres.voeojvarvglvaqrojorh@${DB_HOST}:5432/postgres" \
+            -f "$BACKUP_FILE"
