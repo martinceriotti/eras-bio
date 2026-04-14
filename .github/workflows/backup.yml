@@ -10,12 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Backup
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGSSLMODE: require
         run: |
-          "${{ secrets.SUPABASE_DB_URL }}" \
-          --no-password \
-          -f backup_$(date +%Y%m%d).sql
-          env:
-            PGDATABASE: postgres
+          pg_dump "postgresql://postgres@${{ secrets.SUPABASE_DB_HOST }}:5432/postgres" \
+            --no-password \
+            -f backup_$(date +%Y%m%d).sql
+
       - name: Subir backup como artifact
         uses: actions/upload-artifact@v4
         with:
