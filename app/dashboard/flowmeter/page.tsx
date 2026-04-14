@@ -141,8 +141,6 @@ export default function FlowmeterPage() {
     return reading.accumulated_value - previousReading.accumulated_value
   }
 
-  const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-
   return (
     <div className="p-6 lg:p-8">
       {/* Header */}
@@ -196,7 +194,7 @@ export default function FlowmeterPage() {
                 placeholder="0.00"
                 value={accumulatedValue}
                 onChange={(e) => setAccumulatedValue(e.target.value)}
-                disabled={!canEdit || !isToday}
+                disabled={!canEdit}
               />
             </div>
 
@@ -206,7 +204,7 @@ export default function FlowmeterPage() {
               </p>
             )}
 
-            {canEdit && isToday && (
+            {canEdit && (
               <Button 
                 onClick={handleSave}
                 disabled={saving || !accumulatedValue}
