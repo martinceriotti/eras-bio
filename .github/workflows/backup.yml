@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Backup
         run: |
-          PGSSLMODE=require pg_dump "postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres" \
+          "${{ secrets.SUPABASE_DB_URL }}" \
           --no-password \
           -f backup_$(date +%Y%m%d).sql
           env:
