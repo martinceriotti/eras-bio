@@ -74,7 +74,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
       filename = `pesajes_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
       csvContent = 'Fecha,Tipo,Producto,Empresa,Remito,Peso Bruto,Peso Tara,Peso Neto\n'
       weighingsData.forEach(w => {
-        csvContent += `${formatDate(w.date)},${w.type},${w.type},${w.product?.name || ''},${w.company || ''},${w.remito_number || ''},${w.weight_gross || ''},${w.weight_tare || ''},${w.weight_net}\n`
+        csvContent += `${formatDate(w.date)},${w.type},${w.product?.name || ''},${w.company || ''},${w.remito_number || ''},${w.weight_gross || ''},${w.weight_tare || ''},${w.weight_net}\n`
       })
     } else if (reportType === 'stocks' && stocksData.length > 0) {
       filename = `stocks_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`

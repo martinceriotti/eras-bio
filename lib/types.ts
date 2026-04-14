@@ -208,10 +208,8 @@ export function formatNumber(value: number, decimals: number = 2): string {
 }
 
 // Función helper para formatear fechas
+// Parsea manualmente para evitar conversión UTC que resta un día en zonas UTC-X
 export function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  })
+  const [year, month, day] = dateString.split('T')[0].split('-')
+  return `${day}/${month}/${year}`
 }

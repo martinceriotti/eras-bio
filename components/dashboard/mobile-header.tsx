@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import {
   Leaf,
   Menu,
@@ -71,6 +71,7 @@ export function MobileHeader({ user }: MobileHeaderProps) {
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-72 p-0">
+          <SheetTitle className="sr-only">Menú de navegación</SheetTitle>
           <div className="flex h-full flex-col">
             {/* Logo */}
             <div className="flex h-14 items-center gap-3 border-b px-6">
