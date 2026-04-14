@@ -13,8 +13,9 @@ jobs:
         env:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           PGSSLMODE: require
+          DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
         run: |
-          pg_dump "postgresql://postgres@${{ secrets.SUPABASE_DB_HOST }}:5432/postgres" \
+          pg_dump "postgresql://postgres.voeojvarvglvaqrojorh@${DB_HOST}:5432/postgres" \
             --no-password \
             -f backup_$(date +%Y%m%d).sql
 
