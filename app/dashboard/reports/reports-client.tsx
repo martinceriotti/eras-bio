@@ -80,7 +80,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
       filename = `stocks_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
       csvContent = 'Fecha,Tanque,Codigo,Valor,Unidad,Kg\n'
       stocksData.forEach(s => {
-        csvContent += `${s.reading_date},${s.tank?.name || ''},${s.tank?.code || ''},${s.value},${s.tank?.unit || ''},${s.value_kg || ''}\n`
+        csvContent += `${formatDate(s.reading_date)},${s.tank?.name || ''},${s.tank?.code || ''},${s.value},${s.tank?.unit || ''},${s.value_kg || ''}\n`
       })
     }
 
