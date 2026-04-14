@@ -1,0 +1,23 @@
+name: Supabase Backup
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Todos los días a las 2am UTC
+  workflow_dispatch:       # Para correrlo manualmente también
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Backup
+        run: |
+          pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
+            --clean --if-exists --quote-all-identifiers \
+            -f backup_$(date +%Y%m%d).sql
+
+      - name: Subir backup como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_number }}
+          path: "*.sql"
+          retention-days: 30
