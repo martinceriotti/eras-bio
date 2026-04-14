@@ -79,16 +79,19 @@ export default function FlowmeterPage() {
   }, [selectedDate, supabase])
 
   const handleSave = async () => {
+    console.log('[v0] handleSave called, canEdit:', canEdit, 'accumulatedValue:', accumulatedValue, 'userId:', userId)
     if (!canEdit || !accumulatedValue) return
 
     setSaving(true)
     const dateStr = format(selectedDate, 'yyyy-MM-dd')
     const value = parseFloat(accumulatedValue)
 
+    console.log('[v0] Saving reading:', { dateStr, value, userId, currentReading: currentReading?.id })
+
     try {
       if (currentReading) {
         // Update
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('flowmeter_readings')
           .update({ 
             accumulated_value: value,
@@ -98,7 +101,12 @@ export default function FlowmeterPage() {
           .select()
           .single()
 
-        if (data) {
+        console.log('[v0] Update result:', { data, error })
+
+        if (error) {
+          console.error('[v0] Update error:', error)
+          alert('Error al actualizar: ' + error.message)
+        } else if (data) {
           setCurrentReading(data)
           setRecentReadings(prev => 
             prev.map(r => r.id === data.id ? data : r)
@@ -106,7 +114,7 @@ export default function FlowmeterPage() {
         }
       } else {
         // Insert
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('flowmeter_readings')
           .insert({
             reading_date: dateStr,
@@ -116,13 +124,19 @@ export default function FlowmeterPage() {
           .select()
           .single()
 
-        if (data) {
+        console.log('[v0] Insert result:', { data, error })
+
+        if (error) {
+          console.error('[v0] Insert error:', error)
+          alert('Error al guardar: ' + error.message)
+        } else if (data) {
           setCurrentReading(data)
           setRecentReadings(prev => [data, ...prev])
         }
       }
     } catch (error) {
-      console.error('Error saving flowmeter reading:', error)
+      console.error('[v0] Exception saving flowmeter reading:', error)
+      alert('Error inesperado al guardar')
     } finally {
       setSaving(false)
     }
