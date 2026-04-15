@@ -1,0 +1,87 @@
+name: Release automático
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necesario para obtener todo el historial y tags
+
+      - name: Obtener último tag
+        id: last_tag
+        run: |
+          LAST_TAG=$(git tag --sort=-version:refname | head -n 1)
+          if [ -z "$LAST_TAG" ]; then
+            LAST_TAG="v0.0.0"
+          fi
+          echo "tag=$LAST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Calcular nueva versión
+        id: new_version
+        run: |
+          LAST_TAG=${{ steps.last_tag.outputs.tag }}
+          # Extraer major.minor.patch
+          VERSION=${LAST_TAG#v}
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          # Incrementar patch
+          NEW_PATCH=$((PATCH + 1))
+          NEW_TAG="v${MAJOR}.${MINOR}.${NEW_PATCH}"
+          echo "tag=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "Nueva versión: $NEW_TAG"
+
+      - name: Generar changelog
+        id: changelog
+        run: |
+          LAST_TAG=${{ steps.last_tag.outputs.tag }}
+          NEW_TAG=${{ steps.new_version.outputs.tag }}
+
+          if [ "$LAST_TAG" = "v0.0.0" ]; then
+            COMMITS=$(git log --pretty=format:"- %s (%h)" | head -20)
+          else
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)")
+          fi
+
+          if [ -z "$COMMITS" ]; then
+            COMMITS="- Sin cambios registrados"
+          fi
+
+          # Guardar en archivo para el release (evita problemas con caracteres especiales)
+          echo "## ¿Qué hay de nuevo en $NEW_TAG?" > changelog.md
+          echo "" >> changelog.md
+          echo "**Fecha:** $(date +'%d/%m/%Y %H:%M UTC')" >> changelog.md
+          echo "" >> changelog.md
+          echo "### Cambios incluidos" >> changelog.md
+          echo "$COMMITS" >> changelog.md
+          echo "" >> changelog.md
+          echo "---" >> changelog.md
+          echo "_Deployado automáticamente en Vercel desde \`main\`_" >> changelog.md
+
+          cat changelog.md
+
+      - name: Crear tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.new_version.outputs.tag }}
+          git push origin ${{ steps.new_version.outputs.tag }}
+
+      - name: Crear GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.new_version.outputs.tag }}
+          name: "Release ${{ steps.new_version.outputs.tag }}"
+          body_path: changelog.md
+          draft: false
+          prerelease: false

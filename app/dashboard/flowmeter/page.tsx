@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { CalendarIcon, Save, Loader2, Gauge } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { formatNumber } from '@/lib/types'
+import { formatNumber, formatDate } from '@/lib/types'
 
 interface FlowmeterReading {
   id: string
@@ -250,7 +250,7 @@ export default function FlowmeterPage() {
                     return (
                       <TableRow key={reading.id}>
                         <TableCell>
-                          {format(new Date(reading.reading_date), "dd/MM/yyyy")}
+                          {formatDate(reading.reading_date)}
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           {formatNumber(reading.accumulated_value, 0)}
