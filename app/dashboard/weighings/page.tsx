@@ -234,7 +234,7 @@ export default function WeighingsPage() {
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>
-                    Nueva Pesada de {activeTab === 'recepcion' ? 'Recepción' : 'Despacho'}
+                    Nueva Pesada 
                   </DialogTitle>
                   <DialogDescription>
                     Completa los datos del ticket de pesaje

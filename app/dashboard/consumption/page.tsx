@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { CalendarIcon, Loader2, TrendingUp, AlertCircle, Info } from 'lucide-react'
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { formatNumber, litersToKg, kgToTn, type MaterialType } from '@/lib/types'
+import { formatNumber, litersToKg, kgToTn, formatDate, type MaterialType } from '@/lib/types'
 import {
   ChartContainer,
   ChartTooltip,
@@ -190,7 +190,7 @@ export default function ConsumptionPage() {
 
   // Prepare chart data
   const chartData = completeDays.map(d => ({
-    date: format(new Date(d.date), 'dd/MM'),
+    date: formatDate(d.date).slice(0, 5),
     aceite: d.consumo_especifico_aceite,
     metanol: d.consumo_especifico_metanol,
   }))
@@ -377,9 +377,15 @@ export default function ConsumptionPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {consumptionData.map((day) => (
+                    {consumptionData.filter(day =>
+                      day.biodiesel_producido_kg > 0 ||
+                      day.consumo_especifico_aceite !== null ||
+                      day.consumo_especifico_metanol !== null ||
+                      day.consumo_especifico_soda !== null ||
+                      day.consumo_especifico_acido !== null
+                    ).map((day) => (
                       <TableRow key={day.date} className={!day.isComplete ? 'opacity-50' : ''}>
-                        <TableCell>{format(new Date(day.date), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{formatDate(day.date)}</TableCell>
                         <TableCell className="text-right font-mono">
                           {formatNumber(kgToTn(day.biodiesel_producido_kg))}
                         </TableCell>

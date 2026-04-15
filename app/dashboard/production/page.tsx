@@ -12,7 +12,8 @@ import { CalendarIcon, Loader2, Factory, AlertCircle } from 'lucide-react'
 import { format, subDays, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { 
-  formatNumber, 
+  formatNumber,
+  formatDate,
   type MaterialType,
   MATERIAL_LABELS,
   litersToKg,
@@ -195,7 +196,7 @@ export default function ProductionPage() {
   const chartData = productionData
     .filter(d => d.isComplete)
     .map(d => ({
-      date: format(new Date(d.date), 'dd/MM'),
+      date: formatDate(d.date).slice(0, 5),
       biodiesel: d.biodiesel_producido,
       glicerina: d.glicerina_producida,
     }))
@@ -362,9 +363,14 @@ export default function ProductionPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {productionData.map((day) => (
+                    {productionData.filter(day =>
+                      day.biodiesel_stock_inicial > 0 ||
+                      day.biodiesel_stock_final > 0 ||
+                      day.biodiesel_despachos > 0 ||
+                      day.biodiesel_ingresos > 0
+                    ).map((day) => (
                       <TableRow key={day.date} className={!day.isComplete ? 'opacity-50' : ''}>
-                        <TableCell>{format(new Date(day.date), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{formatDate(day.date)}</TableCell>
                         <TableCell className="text-right font-mono">
                           {formatNumber(day.biodiesel_stock_inicial)}
                         </TableCell>
