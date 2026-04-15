@@ -167,10 +167,14 @@ export function StocksClient({
   const calculateMaterialTotal = (material: MaterialType) => {
     const materialTanks = groupedTanks[material] || []
     let totalKg = 0
-    
+
     materialTanks.forEach(tank => {
       const value = readings[tank.id] || 0
-      if (tank.unit === 'liters') {
+      if (material === 'glp') {
+        totalKg += (tank.capacity_liters || 0) * value * tank.density / 100000
+      } else if (tank.unit === 'liters') {
+        totalKg += litersToKg(value, tank.density)
+       } else if (tank.unit === 'bags') {
         totalKg += litersToKg(value, tank.density)
       } else {
         totalKg += value
@@ -285,7 +289,7 @@ export function StocksClient({
                                 type="number"
                                 step="0.01"
                                 placeholder="0.00"
-                                value={value || ''}
+                                value={value ?? ''}
                                 onChange={(e) => handleValueChange(tank.id, e.target.value)}
                                 disabled={!canEdit || !isToday}
                                 className="flex-1"
@@ -304,7 +308,7 @@ export function StocksClient({
                             {canEdit && isToday && (
                               <Button 
                                 onClick={() => saveReading(tank)}
-                                disabled={isSaving || value === 0}
+                                disabled={isSaving || value === undefined || value === null}
                                 size="sm"
                                 className="w-full"
                                 variant={isSaved ? "outline" : "default"}

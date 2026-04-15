@@ -83,7 +83,7 @@ export default function FlowmeterPage() {
 
     setSaving(true)
     const dateStr = format(selectedDate, 'yyyy-MM-dd')
-    const value = parseFloat(accumulatedValue)
+    const value = parseInt(accumulatedValue, 10)
 
     try {
       if (currentReading) {
@@ -184,14 +184,15 @@ export default function FlowmeterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="accumulated">Valor Acumulado (Litros)</Label>
+              <Label htmlFor="accumulated">Valor Acumulado (Toneladas)</Label>
               <Input
                 id="accumulated"
                 type="number"
-                step="0.01"
-                placeholder="0.00"
+                step="1"
+                min="0"
+                placeholder="0"
                 value={accumulatedValue}
-                onChange={(e) => setAccumulatedValue(e.target.value)}
+                onChange={(e) => setAccumulatedValue(Math.round(Number(e.target.value)).toString())}
                 disabled={!canEdit}
               />
             </div>
@@ -230,9 +231,8 @@ export default function FlowmeterPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Fecha</TableHead>
-                  <TableHead className="text-right">Acumulado (Lt)</TableHead>
-                  <TableHead className="text-right">Producción Diaria (Lt)</TableHead>
-                  <TableHead className="text-right">Producción (Tn)</TableHead>
+                  <TableHead className="text-right">Acumulado (Tn)</TableHead>
+                  <TableHead className="text-right">Producción Diaria (Tn)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -245,7 +245,6 @@ export default function FlowmeterPage() {
                 ) : (
                   recentReadings.map((reading, index) => {
                     const dailyProduction = getDailyProduction(reading, index)
-                    const dailyTn = dailyProduction ? (dailyProduction * 0.88) / 1000 : null
 
                     return (
                       <TableRow key={reading.id}>
@@ -255,11 +254,8 @@ export default function FlowmeterPage() {
                         <TableCell className="text-right font-mono">
                           {formatNumber(reading.accumulated_value, 0)}
                         </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {dailyProduction !== null ? formatNumber(dailyProduction, 0) : '-'}
-                        </TableCell>
                         <TableCell className="text-right font-mono font-semibold">
-                          {dailyTn !== null ? formatNumber(dailyTn) : '-'}
+                          {dailyProduction !== null ? formatNumber(dailyProduction, 0) : '-'}
                         </TableCell>
                       </TableRow>
                     )

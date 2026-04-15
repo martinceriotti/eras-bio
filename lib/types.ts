@@ -4,21 +4,22 @@
 
 export type UserRole = 'operador' | 'general' | 'admin'
 
-export type MaterialType = 
-  | 'aceite_crudo' 
-  | 'aceite_neutro' 
-  | 'biodiesel' 
+export type MaterialType =
+  | 'aceite_crudo'
+  | 'aceite_neutro'
+  | 'biodiesel'
   | 'glicerina'
-  | 'metanol' 
-  | 'soda' 
-  | 'acido_clorhidrico' 
+  | 'metanol'
+  | 'soda'
+  | 'acido_clorhidrico'
   | 'acido_fosforico'
-  | 'metilato' 
-  | 'antioxidante' 
-  | 'acido_citrico' 
-  | 'gomas' 
-  | 'glp' 
-  | 'repro' 
+  | 'metilato'
+  | 'antioxidante'
+  | 'acido_citrico'
+  | 'gomas'
+  | 'glp'
+  | 'repro'
+  | 'efluentes'
   | 'otros'
 
 export type TankUnit = 'liters' | 'bags' | 'percentage'
@@ -174,6 +175,7 @@ export const MATERIAL_LABELS: Record<MaterialType, string> = {
   gomas: 'Gomas',
   glp: 'GLP',
   repro: 'Repro',
+  efluentes: 'Efluentes',
   otros: 'Otros',
 }
 
