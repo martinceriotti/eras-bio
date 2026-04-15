@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
-import { formatNumber, formatDate } from '@/lib/types'
+import { formatNumber, formatDate, calculateValueKg, kgToTn } from '@/lib/types'
 import type { Product, Tank, Weighing, StockReading } from '@/lib/types'
 
 interface ReportsClientProps {
@@ -80,7 +80,8 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
       filename = `stocks_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
       csvContent = 'Fecha,Tanque,Codigo,Valor,Unidad,Kg\n'
       stocksData.forEach(s => {
-        csvContent += `${formatDate(s.reading_date)},${s.tank?.name || ''},${s.tank?.code || ''},${s.value},${s.tank?.unit || ''},${s.value_kg || ''}\n`
+        const valueKg = s.tank ? calculateValueKg(s.tank, s.value) : (s.value_kg || 0)
+        csvContent += `${formatDate(s.reading_date)},${s.tank?.name || ''},${s.tank?.code || ''},${s.value},${s.tank?.unit || ''},${formatNumber(valueKg)}\n`
       })
     }
 
@@ -244,19 +245,22 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stocksData.map((s) => (
-                      <TableRow key={s.id}>
-                        <TableCell>{formatDate(s.reading_date)}</TableCell>
-                        <TableCell>{s.tank?.name}</TableCell>
-                        <TableCell className="font-mono text-sm">{s.tank?.code}</TableCell>
-                        <TableCell className="text-right">
-                          {formatNumber(s.value)} {s.tank?.unit === 'liters' ? 'Lt' : s.tank?.unit === 'percentage' ? '%' : 'bolsas'}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {s.value_kg ? formatNumber(s.value_kg) : '-'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {stocksData.map((s) => {
+                      const valueKg = s.tank ? calculateValueKg(s.tank, s.value) : (s.value_kg || 0)
+                      return (
+                        <TableRow key={s.id}>
+                          <TableCell>{formatDate(s.reading_date)}</TableCell>
+                          <TableCell>{s.tank?.name}</TableCell>
+                          <TableCell className="font-mono text-sm">{s.tank?.code}</TableCell>
+                          <TableCell className="text-right">
+                            {formatNumber(s.value)} {s.tank?.unit === 'liters' ? 'Lt' : s.tank?.unit === 'percentage' ? '%' : 'bolsas'}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatNumber(valueKg)}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>

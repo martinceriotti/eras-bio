@@ -19,7 +19,8 @@ import {
   UNIT_LABELS,
   formatNumber,
   litersToKg,
-  kgToTn
+  kgToTn,
+  calculateValueKg
 } from '@/lib/types'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -53,6 +54,7 @@ export function StocksClient({
 }: StocksClientProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(parseISO(initialDate))
   const [readings, setReadings] = useState<Record<string, number>>({})
+  const [inputValues, setInputValues] = useState<Record<string, string>>({})
   const [savedReadings, setSavedReadings] = useState<Record<string, StockReading>>({})
   const [saving, setSaving] = useState<string | null>(null)
   const [isLoadingDate, setIsLoadingDate] = useState(false)
@@ -104,7 +106,8 @@ export function StocksClient({
   }
 
   const handleValueChange = (tankId: string, value: string) => {
-    const numValue = parseFloat(value) || 0
+    setInputValues(prev => ({ ...prev, [tankId]: value }))
+    const numValue = value === '' ? 0 : parseFloat(value) || 0
     setReadings(prev => ({ ...prev, [tankId]: numValue }))
   }
 
@@ -114,7 +117,7 @@ export function StocksClient({
     setSaving(tank.id)
     const dateStr = format(selectedDate, 'yyyy-MM-dd')
     const value = readings[tank.id] || 0
-    const valueKg = tank.unit === 'liters' ? litersToKg(value, tank.density) : value
+    const valueKg = calculateValueKg(tank, value)
 
     try {
       const existingReading = savedReadings[tank.id]
@@ -262,15 +265,16 @@ export function StocksClient({
                     {groupedTanks[material]?.map(tank => {
                       const value = readings[tank.id] || 0
                       const isSaved = !!savedReadings[tank.id]
-                      const valueKg = tank.unit === 'liters' ? litersToKg(value, tank.density) : value
+                      const valueKg = calculateValueKg(tank, value)
                       const isSaving = saving === tank.id
+                      const exceedsCapacity = tank.capacity_liters !== null && tank.capacity_liters !== undefined && value > tank.capacity_liters
 
                       return (
-                        <div 
-                          key={tank.id} 
+                        <div
+                          key={tank.id}
                           className={cn(
                             "rounded-lg border p-4 transition-colors",
-                            isSaved ? "border-primary/50 bg-primary/5" : "border-border"
+                            exceedsCapacity ? "border-destructive/50 bg-destructive/5" : isSaved ? "border-primary/50 bg-primary/5" : "border-border"
                           )}
                         >
                           <div className="mb-3 flex items-center justify-between">
@@ -289,7 +293,8 @@ export function StocksClient({
                                 type="number"
                                 step="0.01"
                                 placeholder="0.00"
-                                value={value ?? ''}
+                                value={inputValues[tank.id] ?? (value?.toString() ?? '')}
+                                max={tank.capacity_liters ?? undefined}
                                 onChange={(e) => handleValueChange(tank.id, e.target.value)}
                                 disabled={!canEdit || !isToday}
                                 className="flex-1"
@@ -305,10 +310,16 @@ export function StocksClient({
                               </p>
                             )}
 
+                            {exceedsCapacity && (
+                              <p className="text-xs text-destructive font-medium">
+                                Supera la capacidad máxima de {formatNumber(tank.capacity_liters!, 0)} {UNIT_LABELS[tank.unit]}
+                              </p>
+                            )}
+
                             {canEdit && isToday && (
                               <Button 
                                 onClick={() => saveReading(tank)}
-                                disabled={isSaving || value === undefined || value === null}
+                                disabled={isSaving || value === undefined || value === null || exceedsCapacity}
                                 size="sm"
                                 className="w-full"
                                 variant={isSaved ? "outline" : "default"}
