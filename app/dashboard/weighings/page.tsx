@@ -14,7 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { CalendarIcon, Plus, Loader2, Scale, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { CalendarIcon, Plus, Loader2, Scale, Trash2, Pencil, TrendingDown, TrendingUp } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { formatNumber, type Product, type Weighing, type WeighingType } from '@/lib/types'
@@ -30,6 +31,7 @@ export default function WeighingsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState<WeighingType>('recepcion')
+  const [editingWeighing, setEditingWeighing] = useState<Weighing | null>(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -105,6 +107,7 @@ export default function WeighingsPage() {
   }
 
   const resetForm = () => {
+    setEditingWeighing(null)
     setFormData({
       type: activeTab,
       product_id: '',
@@ -118,6 +121,23 @@ export default function WeighingsPage() {
     })
   }
 
+  const handleEdit = (weighing: Weighing) => {
+    if (!isAdmin || !isToday) return
+    setEditingWeighing(weighing)
+    setFormData({
+      type: weighing.type,
+      product_id: weighing.product_id,
+      company: weighing.company || '',
+      remito_number: weighing.remito_number || '',
+      driver: weighing.driver || '',
+      license_plate: weighing.license_plate || '',
+      weight_gross: weighing.weight_gross?.toString() || '',
+      weight_tare: weighing.weight_tare?.toString() || '',
+      observations: weighing.observations || '',
+    })
+    setDialogOpen(true)
+  }
+
   const handleSave = async () => {
     if (!canEdit || !formData.product_id) return
 
@@ -126,29 +146,57 @@ export default function WeighingsPage() {
     const netWeight = calculateNetWeight()
 
     try {
-      const { data, error } = await supabase
-        .from('weighings')
-        .insert({
-          date: dateStr,
-          type: formData.type,
-          product_id: formData.product_id,
-          company: formData.company || null,
-          remito_number: formData.remito_number || null,
-          driver: formData.driver || null,
-          license_plate: formData.license_plate || null,
-          weight_gross: parseFloat(formData.weight_gross) || null,
-          weight_tare: parseFloat(formData.weight_tare) || null,
-          weight_net: netWeight,
-          observations: formData.observations || null,
-          user_id: userId,
-        })
-        .select('*, product:products(*)')
-        .single()
+      if (editingWeighing) {
+        // UPDATE
+        const { data, error } = await supabase
+          .from('weighings')
+          .update({
+            type: formData.type,
+            product_id: formData.product_id,
+            company: formData.company || null,
+            remito_number: formData.remito_number || null,
+            driver: formData.driver || null,
+            license_plate: formData.license_plate || null,
+            weight_gross: parseFloat(formData.weight_gross) || null,
+            weight_tare: parseFloat(formData.weight_tare) || null,
+            weight_net: netWeight,
+            observations: formData.observations || null,
+          })
+          .eq('id', editingWeighing.id)
+          .select('*, product:products(*)')
+          .single()
 
-      if (!error && data) {
-        setWeighings(prev => [data as Weighing, ...prev])
-        resetForm()
-        setDialogOpen(false)
+        if (!error && data) {
+          setWeighings(prev => prev.map(w => w.id === editingWeighing.id ? data as Weighing : w))
+          resetForm()
+          setDialogOpen(false)
+        }
+      } else {
+        // INSERT
+        const { data, error } = await supabase
+          .from('weighings')
+          .insert({
+            date: dateStr,
+            type: formData.type,
+            product_id: formData.product_id,
+            company: formData.company || null,
+            remito_number: formData.remito_number || null,
+            driver: formData.driver || null,
+            license_plate: formData.license_plate || null,
+            weight_gross: parseFloat(formData.weight_gross) || null,
+            weight_tare: parseFloat(formData.weight_tare) || null,
+            weight_net: netWeight,
+            observations: formData.observations || null,
+            user_id: userId,
+          })
+          .select('*, product:products(*)')
+          .single()
+
+        if (!error && data) {
+          setWeighings(prev => [data as Weighing, ...prev])
+          resetForm()
+          setDialogOpen(false)
+        }
       }
     } catch (error) {
       console.error('Error saving weighing:', error)
@@ -170,8 +218,8 @@ export default function WeighingsPage() {
     }
   }
 
-  const filteredProducts = products.filter(p => 
-    p.category === activeTab || p.category === 'ambos'
+  const filteredProducts = products.filter(p =>
+    p.category === formData.type || p.category === 'ambos'
   )
 
   const receptions = weighings.filter(w => w.type === 'recepcion')
@@ -222,9 +270,13 @@ export default function WeighingsPage() {
           </Popover>
 
           {canEdit && isToday && (
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              if (!open) resetForm()
+              setDialogOpen(open)
+            }}>
               <DialogTrigger asChild>
                 <Button onClick={() => {
+                  setEditingWeighing(null)
                   setFormData(prev => ({ ...prev, type: activeTab }))
                 }}>
                   <Plus className="mr-2 h-4 w-4" />
@@ -234,10 +286,12 @@ export default function WeighingsPage() {
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>
-                    Nueva Pesada 
+                    {editingWeighing ? 'Editar Pesada' : 'Nueva Pesada'}
                   </DialogTitle>
                   <DialogDescription>
-                    Completa los datos del ticket de pesaje
+                    {editingWeighing
+                      ? 'Modificá los datos del ticket de pesaje'
+                      : 'Completa los datos del ticket de pesaje'}
                   </DialogDescription>
                 </DialogHeader>
 
@@ -362,7 +416,7 @@ export default function WeighingsPage() {
                   </Button>
                   <Button onClick={handleSave} disabled={saving || !formData.product_id || calculateNetWeight() <= 0}>
                     {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Guardar Pesada
+                    {editingWeighing ? 'Guardar Cambios' : 'Guardar Pesada'}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -414,18 +468,22 @@ export default function WeighingsPage() {
         </TabsList>
 
         <TabsContent value="recepcion">
-          <WeighingsTable 
-            weighings={receptions} 
-            onDelete={handleDelete} 
+          <WeighingsTable
+            weighings={receptions}
+            onDelete={handleDelete}
+            onEdit={handleEdit}
             isAdmin={isAdmin}
+            canEditToday={isToday}
           />
         </TabsContent>
 
         <TabsContent value="despacho">
-          <WeighingsTable 
-            weighings={dispatches} 
-            onDelete={handleDelete} 
+          <WeighingsTable
+            weighings={dispatches}
+            onDelete={handleDelete}
+            onEdit={handleEdit}
             isAdmin={isAdmin}
+            canEditToday={isToday}
           />
         </TabsContent>
       </Tabs>
@@ -433,15 +491,23 @@ export default function WeighingsPage() {
   )
 }
 
-function WeighingsTable({ 
-  weighings, 
-  onDelete, 
-  isAdmin 
-}: { 
+function WeighingsTable({
+  weighings,
+  onDelete,
+  onEdit,
+  isAdmin,
+  canEditToday,
+}: {
   weighings: Weighing[]
   onDelete: (id: string) => void
+  onEdit: (weighing: Weighing) => void
   isAdmin: boolean
+  canEditToday: boolean
 }) {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+
+  const confirmingWeighing = weighings.find(w => w.id === confirmDeleteId)
+
   if (weighings.length === 0) {
     return (
       <Card>
@@ -452,7 +518,10 @@ function WeighingsTable({
     )
   }
 
+  const showActions = isAdmin && canEditToday
+
   return (
+    <>
     <Card>
       <CardContent className="p-0">
         <Table>
@@ -465,7 +534,7 @@ function WeighingsTable({
               <TableHead className="text-right">Bruto (Tn)</TableHead>
               <TableHead className="text-right">Tara (Tn)</TableHead>
               <TableHead className="text-right">Neto (Tn)</TableHead>
-              {isAdmin && <TableHead className="w-[50px]"></TableHead>}
+              {showActions && <TableHead className="w-[90px]"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -484,16 +553,28 @@ function WeighingsTable({
                 <TableCell className="text-right font-mono font-semibold">
                   {formatNumber(weighing.weight_net, 3)}
                 </TableCell>
-                {isAdmin && (
+                {showActions && (
                   <TableCell>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => onDelete(weighing.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEdit(weighing)}
+                        className="text-muted-foreground hover:text-foreground"
+                        title="Editar pesada"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setConfirmDeleteId(weighing.id)}
+                        className="text-destructive hover:text-destructive"
+                        title="Eliminar pesada"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 )}
               </TableRow>
@@ -502,5 +583,36 @@ function WeighingsTable({
         </Table>
       </CardContent>
     </Card>
+
+    <AlertDialog open={!!confirmDeleteId} onOpenChange={(open) => !open && setConfirmDeleteId(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Eliminar pesada?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Estás por eliminar la pesada de{' '}
+            <span className="font-semibold text-foreground">
+              {confirmingWeighing?.product?.name}
+            </span>
+            {confirmingWeighing?.weight_net != null && (
+              <> — {confirmingWeighing.weight_net.toFixed(3)} Tn</>
+            )}
+            . Esta acción no se puede deshacer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              if (confirmDeleteId) onDelete(confirmDeleteId)
+              setConfirmDeleteId(null)
+            }}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }
