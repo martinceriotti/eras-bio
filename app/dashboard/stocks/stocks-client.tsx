@@ -264,7 +264,7 @@ export function StocksClient({
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {groupedTanks[material]?.map(tank => {
                       const value = readings[tank.id] || 0
                       const isSaved = !!savedReadings[tank.id]

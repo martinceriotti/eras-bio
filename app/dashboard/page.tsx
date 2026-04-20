@@ -187,7 +187,7 @@ export default async function DashboardPage() {
       {/* Key Materials */}
       <div className="mb-8">
         <h2 className="mb-4 text-lg font-semibold text-foreground">Materiales Principales</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           {keyMaterials.map((material) => {
             const data = stocksByMaterial[material]
             const todayTn = (data?.today || 0) / 1000
@@ -218,7 +218,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Recent Weighings */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Recent Receptions */}
         <Card>
           <CardHeader>
