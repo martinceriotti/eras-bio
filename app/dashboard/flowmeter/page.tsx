@@ -150,7 +150,7 @@ export default function FlowmeterPage() {
         </p>
       </div>
 
-      <div className="grid w-full min-w-0 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 w-full min-w-0 gap-6 lg:grid-cols-3">
         {/* Input Card */}
         <Card className="lg:col-span-1">
           <CardHeader>

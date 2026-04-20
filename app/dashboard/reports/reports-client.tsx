@@ -211,7 +211,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
           <CardDescription>Selecciona el tipo de reporte y el rango de fechas</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <div className="space-y-2">
               <Label>Tipo de Reporte</Label>
               <Select value={reportType} onValueChange={(v) => setReportType(v as ReportType)}>
