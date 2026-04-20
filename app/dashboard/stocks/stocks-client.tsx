@@ -196,7 +196,7 @@ export function StocksClient({
   const completionPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 lg:p-8">
       {/* Header */}
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
