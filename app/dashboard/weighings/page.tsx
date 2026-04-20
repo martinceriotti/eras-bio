@@ -520,6 +520,7 @@ function WeighingsTable({
     <>
     <Card>
       <CardContent className="p-0">
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -577,6 +578,7 @@ function WeighingsTable({
             ))}
           </TableBody>
         </Table>
+        </div>
       </CardContent>
     </Card>
 

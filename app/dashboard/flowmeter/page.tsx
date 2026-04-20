@@ -228,6 +228,7 @@ export default function FlowmeterPage() {
             <CardDescription>Últimos 30 días</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -264,6 +265,7 @@ export default function FlowmeterPage() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
