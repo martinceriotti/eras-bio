@@ -65,7 +65,7 @@ export default function FlowmeterPage() {
         .from('flowmeter_readings')
         .select('*')
         .eq('reading_date', dateStr)
-        .single()
+        .maybeSingle()
 
       if (data) {
         setCurrentReading(data)
@@ -141,7 +141,7 @@ export default function FlowmeterPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 lg:p-8">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Caudalímetro</h1>
@@ -150,7 +150,7 @@ export default function FlowmeterPage() {
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid w-full min-w-0 gap-6 lg:grid-cols-3">
         {/* Input Card */}
         <Card className="lg:col-span-1">
           <CardHeader>

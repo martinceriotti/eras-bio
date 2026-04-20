@@ -239,7 +239,7 @@ export default function WeighingsPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 lg:p-8">
       {/* Header */}
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
@@ -248,12 +248,12 @@ export default function WeighingsPage() {
             Registro de pesadas de recepción y despacho
           </p>
         </div>
-        
-        <div className="flex items-center gap-4">
+
+        <div className="flex flex-wrap items-center gap-2">
           {/* Date Picker */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="w-[220px] justify-start text-left font-normal">
+              <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {format(selectedDate, "PPP", { locale: es })}
               </Button>

@@ -36,12 +36,12 @@ export default async function DashboardLayout({
       </aside>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-x-hidden min-w-0">
         {/* Mobile Header */}
         <MobileHeader user={userProfile} />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
           {children}
         </main>
       </div>

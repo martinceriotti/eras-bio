@@ -81,7 +81,7 @@ export default async function DashboardPage() {
   const keyMaterials: MaterialType[] = ['aceite_crudo', 'biodiesel', 'glicerina', 'metanol']
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 lg:p-8">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-foreground lg:text-3xl">Dashboard</h1>
