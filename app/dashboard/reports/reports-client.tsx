@@ -297,7 +297,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
           </CardHeader>
           <CardContent>
             {reportType === 'weighings' && weighingsData.length > 0 && (
-              <div className="rounded-md border">
+              <div className="overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -335,7 +335,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
             )}
 
             {reportType === 'stocks' && stocksData.length > 0 && (
-              <div className="rounded-md border">
+              <div className="overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -368,7 +368,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
               </div>
             )}
             {reportType === 'production' && productionData.length > 0 && (
-              <div className="rounded-md border">
+              <div className="overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
