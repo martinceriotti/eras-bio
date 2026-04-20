@@ -122,7 +122,7 @@ export default function WeighingsPage() {
   }
 
   const handleEdit = (weighing: Weighing) => {
-    if (!isAdmin || !isToday) return
+    if (!isAdmin) return
     setEditingWeighing(weighing)
     setFormData({
       type: weighing.type,
@@ -269,7 +269,7 @@ export default function WeighingsPage() {
             </PopoverContent>
           </Popover>
 
-          {canEdit && isToday && (
+          {canEdit && (isToday || isAdmin) && (
             <Dialog open={dialogOpen} onOpenChange={(open) => {
               if (!open) resetForm()
               setDialogOpen(open)
@@ -393,7 +393,7 @@ export default function WeighingsPage() {
                     </div>
                     <div className="space-y-2">
                       <Label>Peso Neto (Tn)</Label>
-                      <div className="flex h-10 items-center rounded-md border bg-muted px-3 font-mono font-semibold">
+                      <div className={`flex h-10 items-center rounded-md border px-3 font-mono font-semibold ${calculateNetWeight() <= 0 ? 'border-destructive bg-destructive/10 text-destructive' : 'bg-muted'}`}>
                         {formatNumber(calculateNetWeight(), 3)}
                       </div>
                     </div>
@@ -473,7 +473,6 @@ export default function WeighingsPage() {
             onDelete={handleDelete}
             onEdit={handleEdit}
             isAdmin={isAdmin}
-            canEditToday={isToday}
           />
         </TabsContent>
 
@@ -483,7 +482,6 @@ export default function WeighingsPage() {
             onDelete={handleDelete}
             onEdit={handleEdit}
             isAdmin={isAdmin}
-            canEditToday={isToday}
           />
         </TabsContent>
       </Tabs>
@@ -496,13 +494,11 @@ function WeighingsTable({
   onDelete,
   onEdit,
   isAdmin,
-  canEditToday,
 }: {
   weighings: Weighing[]
   onDelete: (id: string) => void
   onEdit: (weighing: Weighing) => void
   isAdmin: boolean
-  canEditToday: boolean
 }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
@@ -518,7 +514,7 @@ function WeighingsTable({
     )
   }
 
-  const showActions = isAdmin && canEditToday
+  const showActions = isAdmin
 
   return (
     <>

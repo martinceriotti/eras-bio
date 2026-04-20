@@ -30,6 +30,7 @@ interface StocksClientProps {
   initialReadings: StockReading[]
   selectedDate: string
   canEdit: boolean
+  isAdmin: boolean
   userId: string
 }
 
@@ -45,12 +46,13 @@ function groupTanksByMaterial(tanks: Tank[]): Record<MaterialType, Tank[]> {
   }, {} as Record<MaterialType, Tank[]>)
 }
 
-export function StocksClient({ 
-  tanks, 
-  initialReadings, 
+export function StocksClient({
+  tanks,
+  initialReadings,
   selectedDate: initialDate,
   canEdit,
-  userId 
+  isAdmin,
+  userId
 }: StocksClientProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(parseISO(initialDate))
   const [readings, setReadings] = useState<Record<string, number>>({})
@@ -79,7 +81,7 @@ export function StocksClient({
   const fetchReadingsForDate = useCallback(async (date: Date) => {
     setIsLoadingDate(true)
     const dateStr = format(date, 'yyyy-MM-dd')
-    
+
     const { data } = await supabase
       .from('stock_readings')
       .select('*')
@@ -87,14 +89,15 @@ export function StocksClient({
 
     const readingsMap: Record<string, number> = {}
     const savedMap: Record<string, StockReading> = {}
-    
+
     data?.forEach(reading => {
       readingsMap[reading.tank_id] = reading.value
       savedMap[reading.tank_id] = reading
     })
-    
+
     setReadings(readingsMap)
     setSavedReadings(savedMap)
+    setInputValues({})
     setIsLoadingDate(false)
   }, [supabase])
 
@@ -296,7 +299,7 @@ export function StocksClient({
                                 value={inputValues[tank.id] ?? (value?.toString() ?? '')}
                                 max={tank.capacity_liters ?? undefined}
                                 onChange={(e) => handleValueChange(tank.id, e.target.value)}
-                                disabled={!canEdit || !isToday}
+                                disabled={!canEdit || (!isToday && !isAdmin)}
                                 className="flex-1"
                               />
                               <span className="flex items-center text-sm text-muted-foreground min-w-[50px]">
@@ -316,8 +319,8 @@ export function StocksClient({
                               </p>
                             )}
 
-                            {canEdit && isToday && (
-                              <Button 
+                            {canEdit && (isToday || isAdmin) && (
+                              <Button
                                 onClick={() => saveReading(tank)}
                                 disabled={isSaving || value === undefined || value === null || exceedsCapacity}
                                 size="sm"

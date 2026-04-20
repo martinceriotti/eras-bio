@@ -29,13 +29,15 @@ export default async function StocksPage() {
     .eq('reading_date', today)
 
   const canEdit = profile?.role === 'operador' || profile?.role === 'admin'
+  const isAdmin = profile?.role === 'admin'
 
   return (
-    <StocksClient 
-      tanks={(tanks || []) as Tank[]} 
+    <StocksClient
+      tanks={(tanks || []) as Tank[]}
       initialReadings={(todayReadings || []) as StockReading[]}
       selectedDate={today}
       canEdit={canEdit}
+      isAdmin={isAdmin}
       userId={user?.id || ''}
     />
   )
