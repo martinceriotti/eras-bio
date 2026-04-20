@@ -8,7 +8,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { CalendarIcon, Loader2, Factory, AlertCircle } from 'lucide-react'
+import { CalendarIcon, Loader2, Factory, AlertCircle, Download } from 'lucide-react'
 import { format, subDays, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { 
@@ -180,6 +180,26 @@ export default function ProductionPage() {
     fetchProductionData()
   }, [fetchProductionData])
 
+  const exportToCSV = () => {
+    const rows = productionData.filter(d =>
+      d.biodiesel_stock_inicial > 0 || d.biodiesel_stock_final > 0 ||
+      d.biodiesel_despachos > 0 || d.biodiesel_ingresos > 0
+    )
+    if (rows.length === 0) return
+
+    const filename = `produccion_${format(selectedMonth, 'yyyyMM')}.csv`
+    let csv = 'Fecha,Stock Inicial (Tn),Stock Final (Tn),Despachos (Tn),Ingresos (Tn),Producción (Tn),Estado\n'
+    rows.forEach(d => {
+      csv += `${formatDate(d.date)},${formatNumber(d.biodiesel_stock_inicial)},${formatNumber(d.biodiesel_stock_final)},${formatNumber(d.biodiesel_despachos)},${formatNumber(d.biodiesel_ingresos)},${formatNumber(d.biodiesel_producido)},${d.isComplete ? 'Completo' : 'Incompleto'}\n`
+    })
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = filename
+    link.click()
+  }
+
   // Calculate monthly totals
   const monthlyTotals = productionData.reduce((acc, day) => {
     if (day.isComplete) {
@@ -342,11 +362,17 @@ export default function ProductionPage() {
 
           {/* Daily Table */}
           <Card>
-            <CardHeader>
-              <CardTitle>Detalle Diario</CardTitle>
-              <CardDescription>
-                Fórmula: Producción = Stock Final - Stock Inicial + Despachos - Ingresos
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Detalle Diario</CardTitle>
+                <CardDescription>
+                  Fórmula: Producción = Stock Final - Stock Inicial + Despachos - Ingresos
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={exportToCSV} disabled={productionData.length === 0}>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar CSV
+              </Button>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">

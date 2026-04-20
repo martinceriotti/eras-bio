@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { format, subDays, startOfMonth, endOfMonth } from 'date-fns'
+import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Calendar as CalendarIcon, Download, FileText, Filter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -13,8 +13,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
-import { formatNumber, formatDate, calculateValueKg, kgToTn } from '@/lib/types'
-import type { Product, Tank, Weighing, StockReading } from '@/lib/types'
+import { formatNumber, formatDate, calculateValueKg, kgToTn, litersToKg } from '@/lib/types'
+import type { Product, Tank, Weighing, StockReading, MaterialType } from '@/lib/types'
 
 interface ReportsClientProps {
   products: Product[]
@@ -22,6 +22,16 @@ interface ReportsClientProps {
 }
 
 type ReportType = 'weighings' | 'stocks' | 'production'
+
+interface DailyProductionData {
+  date: string
+  biodiesel_producido: number
+  biodiesel_despachos: number
+  aceite_consumido: number
+  metanol_consumido: number
+  glicerina_producida: number
+  isComplete: boolean
+}
 
 export function ReportsClient({ products, tanks }: ReportsClientProps) {
   const supabase = createClient()
@@ -31,6 +41,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
   const [loading, setLoading] = useState(false)
   const [weighingsData, setWeighingsData] = useState<Weighing[]>([])
   const [stocksData, setStocksData] = useState<(StockReading & { tank: Tank })[]>([])
+  const [productionData, setProductionData] = useState<DailyProductionData[]>([])
 
   const handleGenerateReport = async () => {
     setLoading(true)
@@ -58,6 +69,90 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
 
         setStocksData(data || [])
         setWeighingsData([])
+        setProductionData([])
+      } else if (reportType === 'production') {
+        // Fetch one day before dateFrom to calculate the first day's delta
+        const prevDay = format(new Date(dateFrom.getTime() - 86400000), 'yyyy-MM-dd')
+
+        const [{ data: stockReadings }, { data: weighings }, { data: allTanks }] = await Promise.all([
+          supabase
+            .from('stock_readings')
+            .select('*, tank:tanks(*)')
+            .gte('reading_date', prevDay)
+            .lte('reading_date', toStr),
+          supabase
+            .from('weighings')
+            .select('*, product:products(*)')
+            .gte('date', fromStr)
+            .lte('date', toStr),
+          supabase
+            .from('tanks')
+            .select('*')
+            .eq('is_active', true),
+        ])
+
+        const days = eachDayOfInterval({ start: dateFrom, end: dateTo })
+        const dailyData: DailyProductionData[] = []
+
+        const calcMaterial = (readings: typeof stockReadings, material: MaterialType) =>
+          (readings || [])
+            .filter((r: any) => r.tank?.material_type === material)
+            .reduce((acc: number, r: any) => {
+              const valueKg = r.value_kg || (r.tank ? litersToKg(r.value, r.tank.density) : r.value)
+              return acc + valueKg
+            }, 0)
+
+        for (let i = 0; i < days.length; i++) {
+          const dateStr = format(days[i], 'yyyy-MM-dd')
+          const prevDateStr = i > 0
+            ? format(days[i - 1], 'yyyy-MM-dd')
+            : prevDay
+
+          const curr = (stockReadings || []).filter((r: any) => r.reading_date === dateStr)
+          const prev = (stockReadings || []).filter((r: any) => r.reading_date === prevDateStr)
+          const dayW = (weighings || []).filter((w: any) => w.date === dateStr)
+
+          const biodieselFinal = calcMaterial(curr, 'biodiesel')
+          const biodieselInicial = calcMaterial(prev, 'biodiesel')
+          const aceiteNeutroFinal = calcMaterial(curr, 'aceite_neutro')
+          const aceiteNeutroInicial = calcMaterial(prev, 'aceite_neutro')
+          const aceiteCrudoFinal = calcMaterial(curr, 'aceite_crudo')
+          const aceiteCrudoInicial = calcMaterial(prev, 'aceite_crudo')
+          const metanolFinal = calcMaterial(curr, 'metanol')
+          const metanolInicial = calcMaterial(prev, 'metanol')
+          const glicerinaFinal = calcMaterial(curr, 'glicerina')
+          const glicerinaInicial = calcMaterial(prev, 'glicerina')
+
+          const biodieselDespachos = dayW
+            .filter((w: any) => w.type === 'despacho' && w.product?.name?.toLowerCase().includes('biodiesel'))
+            .reduce((acc: number, w: any) => acc + (w.weight_net * 1000), 0)
+          const biodieselIngresos = dayW
+            .filter((w: any) => w.type === 'recepcion' && w.product?.name?.toLowerCase().includes('biodiesel'))
+            .reduce((acc: number, w: any) => acc + (w.weight_net * 1000), 0)
+          const aceiteIngresos = dayW
+            .filter((w: any) => w.type === 'recepcion' && w.product?.name?.toLowerCase().includes('aceite'))
+            .reduce((acc: number, w: any) => acc + (w.weight_net * 1000), 0)
+          const metanolIngresos = dayW
+            .filter((w: any) => w.type === 'recepcion' && w.product?.name?.toLowerCase().includes('metanol'))
+            .reduce((acc: number, w: any) => acc + (w.weight_net * 1000), 0)
+          const glicerinaDespachos = dayW
+            .filter((w: any) => w.type === 'despacho' && w.product?.name?.toLowerCase().includes('glicerina'))
+            .reduce((acc: number, w: any) => acc + (w.weight_net * 1000), 0)
+
+          dailyData.push({
+            date: dateStr,
+            biodiesel_producido: Math.max(0, kgToTn(biodieselFinal - biodieselInicial + biodieselDespachos - biodieselIngresos)),
+            biodiesel_despachos: kgToTn(biodieselDespachos),
+            aceite_consumido: Math.max(0, kgToTn((aceiteNeutroInicial + aceiteCrudoInicial) - (aceiteNeutroFinal + aceiteCrudoFinal) + aceiteIngresos)),
+            metanol_consumido: Math.max(0, kgToTn(metanolInicial - metanolFinal + metanolIngresos)),
+            glicerina_producida: Math.max(0, kgToTn(glicerinaFinal - glicerinaInicial + glicerinaDespachos)),
+            isComplete: curr.length > 0 && prev.length > 0,
+          })
+        }
+
+        setProductionData(dailyData)
+        setWeighingsData([])
+        setStocksData([])
       }
     } catch (error) {
       console.error('Error generating report:', error)
@@ -70,7 +165,13 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
     let csvContent = ''
     let filename = ''
 
-    if (reportType === 'weighings' && weighingsData.length > 0) {
+    if (reportType === 'production' && productionData.length > 0) {
+      filename = `produccion_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
+      csvContent = 'Fecha,Biodiesel Producido (Tn),Biodiesel Despachado (Tn),Aceite Consumido (Tn),Metanol Consumido (Tn),Glicerina Producida (Tn),Completo\n'
+      productionData.forEach(d => {
+        csvContent += `${formatDate(d.date)},${formatNumber(d.biodiesel_producido, 3)},${formatNumber(d.biodiesel_despachos, 3)},${formatNumber(d.aceite_consumido, 3)},${formatNumber(d.metanol_consumido, 3)},${formatNumber(d.glicerina_producida, 3)},${d.isComplete ? 'Sí' : 'No'}\n`
+      })
+    } else if (reportType === 'weighings' && weighingsData.length > 0) {
       filename = `pesajes_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
       csvContent = 'Fecha,Tipo,Producto,Empresa,Remito,Peso Bruto,Peso Tara,Peso Neto\n'
       weighingsData.forEach(w => {
@@ -178,7 +279,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
       </Card>
 
       {/* Results */}
-      {(weighingsData.length > 0 || stocksData.length > 0) && (
+      {(weighingsData.length > 0 || stocksData.length > 0 || productionData.length > 0) && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -186,6 +287,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
               <CardDescription>
                 {reportType === 'weighings' && `${weighingsData.length} pesajes encontrados`}
                 {reportType === 'stocks' && `${stocksData.length} lecturas encontradas`}
+                {reportType === 'production' && `${productionData.length} días`}
               </CardDescription>
             </div>
             <Button variant="outline" onClick={exportToCSV}>
@@ -265,11 +367,58 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
                 </Table>
               </div>
             )}
+            {reportType === 'production' && productionData.length > 0 && (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead className="text-right">Biodiesel Prod. (Tn)</TableHead>
+                      <TableHead className="text-right">Biodiesel Desp. (Tn)</TableHead>
+                      <TableHead className="text-right">Aceite Cons. (Tn)</TableHead>
+                      <TableHead className="text-right">Metanol Cons. (Tn)</TableHead>
+                      <TableHead className="text-right">Glicerina Prod. (Tn)</TableHead>
+                      <TableHead className="text-center">Datos</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {productionData.map((d) => (
+                      <TableRow key={d.date} className={!d.isComplete ? 'opacity-50' : ''}>
+                        <TableCell>{formatDate(d.date)}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold">
+                          {formatNumber(d.biodiesel_producido, 3)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {formatNumber(d.biodiesel_despachos, 3)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {formatNumber(d.aceite_consumido, 3)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {formatNumber(d.metanol_consumido, 3)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {formatNumber(d.glicerina_producida, 3)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className={cn(
+                            "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
+                            d.isComplete ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                          )}>
+                            {d.isComplete ? 'Completo' : 'Incompleto'}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {weighingsData.length === 0 && stocksData.length === 0 && !loading && (
+      {weighingsData.length === 0 && stocksData.length === 0 && productionData.length === 0 && !loading && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
