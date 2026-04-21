@@ -18,11 +18,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { CalendarIcon, Plus, Loader2, Scale, Trash2, Pencil, TrendingDown, TrendingUp } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { formatNumber, type Product, type Weighing, type WeighingType } from '@/lib/types'
+import { formatNumber, type Product, type WeighingWithProduct, type WeighingType } from '@/lib/types'
 
 export default function WeighingsPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
-  const [weighings, setWeighings] = useState<Weighing[]>([])
+  const [weighings, setWeighings] = useState<WeighingWithProduct[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [canEdit, setCanEdit] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -31,7 +31,7 @@ export default function WeighingsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState<WeighingType>('recepcion')
-  const [editingWeighing, setEditingWeighing] = useState<Weighing | null>(null)
+  const [editingWeighing, setEditingWeighing] = useState<WeighingWithProduct | null>(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -90,7 +90,7 @@ export default function WeighingsPage() {
         .eq('date', dateStr)
         .order('created_at', { ascending: false })
 
-      setWeighings((data || []) as Weighing[])
+      setWeighings((data || []) as WeighingWithProduct[])
     }
 
     fetchWeighings()
@@ -121,7 +121,7 @@ export default function WeighingsPage() {
     })
   }
 
-  const handleEdit = (weighing: Weighing) => {
+  const handleEdit = (weighing: WeighingWithProduct) => {
     if (!isAdmin) return
     setEditingWeighing(weighing)
     setFormData({
@@ -167,7 +167,7 @@ export default function WeighingsPage() {
           .single()
 
         if (!error && data) {
-          setWeighings(prev => prev.map(w => w.id === editingWeighing.id ? data as Weighing : w))
+          setWeighings(prev => prev.map(w => w.id === editingWeighing.id ? data as WeighingWithProduct : w))
           resetForm()
           setDialogOpen(false)
         }
@@ -193,7 +193,7 @@ export default function WeighingsPage() {
           .single()
 
         if (!error && data) {
-          setWeighings(prev => [data as Weighing, ...prev])
+          setWeighings(prev => [data as WeighingWithProduct, ...prev])
           resetForm()
           setDialogOpen(false)
         }
@@ -495,9 +495,9 @@ function WeighingsTable({
   onEdit,
   isAdmin,
 }: {
-  weighings: Weighing[]
+  weighings: WeighingWithProduct[]
   onDelete: (id: string) => void
-  onEdit: (weighing: Weighing) => void
+  onEdit: (weighing: WeighingWithProduct) => void
   isAdmin: boolean
 }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
