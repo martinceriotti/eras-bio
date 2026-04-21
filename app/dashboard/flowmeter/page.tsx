@@ -30,19 +30,36 @@ export default function FlowmeterPage() {
   const [recentReadings, setRecentReadings] = useState<FlowmeterReading[]>([])
   const [currentReading, setCurrentReading] = useState<FlowmeterReading | null>(null)
   const [canEdit, setCanEdit] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [userId, setUserId] = useState<string>('')
-  
+
   const supabase = createClient()
+
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const selectedDateStr = format(selectedDate, 'yyyy-MM-dd')
+  const isToday = selectedDateStr === today
+
+  // Un operador solo puede editar el día de hoy.
+  // Un admin puede editar cualquier fecha.
+  const isEditable = canEdit && (isAdmin || isToday)
 
   useEffect(() => {
     const init = async () => {
-      // Get user
       const { data: { user } } = await supabase.auth.getUser()
-      
+
       if (user) {
         setUserId(user.id)
-        // Para el MVP, cualquier usuario autenticado puede editar
-        setCanEdit(true)
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+
+        const role = profile?.role
+        const editable = role === 'operador' || role === 'admin'
+        setCanEdit(editable)
+        setIsAdmin(role === 'admin')
       }
 
       // Fetch recent readings (last 30 days)
@@ -80,7 +97,7 @@ export default function FlowmeterPage() {
   }, [selectedDate, supabase])
 
   const handleSave = async () => {
-    if (!canEdit || !accumulatedValue) return
+    if (!isEditable || !accumulatedValue) return
 
     setSaving(true)
     const dateStr = format(selectedDate, 'yyyy-MM-dd')
@@ -194,7 +211,7 @@ export default function FlowmeterPage() {
                 placeholder="0"
                 value={accumulatedValue}
                 onChange={(e) => setAccumulatedValue(Math.round(Number(e.target.value)).toString())}
-                disabled={!canEdit}
+                disabled={!isEditable}
               />
             </div>
 
@@ -204,8 +221,18 @@ export default function FlowmeterPage() {
               </p>
             )}
 
-            {canEdit && (
-              <Button 
+            {!canEdit && (
+              <p className="text-sm text-muted-foreground">
+                No tenés permisos para editar el caudalímetro.
+              </p>
+            )}
+            {canEdit && !isToday && !isAdmin && (
+              <p className="text-sm text-muted-foreground">
+                Solo podés editar la lectura del día de hoy.
+              </p>
+            )}
+            {isEditable && (
+              <Button
                 onClick={handleSave}
                 disabled={saving || !accumulatedValue}
                 className="w-full"
