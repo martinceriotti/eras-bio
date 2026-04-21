@@ -14,7 +14,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { formatNumber, formatDate, calculateValueKg, kgToTn, litersToKg } from '@/lib/types'
-import type { Product, Tank, WeighingWithProduct, StockReading, MaterialType } from '@/lib/types'
+import type { Product, Tank, Weighing, StockReading, MaterialType } from '@/lib/types'
 
 interface ReportsClientProps {
   products: Product[]
@@ -39,7 +39,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
   const [dateFrom, setDateFrom] = useState<Date>(startOfMonth(new Date()))
   const [dateTo, setDateTo] = useState<Date>(new Date())
   const [loading, setLoading] = useState(false)
-  const [weighingsData, setWeighingsData] = useState<WeighingWithProduct[]>([])
+  const [weighingsData, setWeighingsData] = useState<Weighing[]>([])
   const [stocksData, setStocksData] = useState<(StockReading & { tank: Tank })[]>([])
   const [productionData, setProductionData] = useState<DailyProductionData[]>([])
 
