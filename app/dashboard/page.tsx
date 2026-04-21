@@ -1,9 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Container, Scale, Droplets, Factory, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react'
+import { Container, Droplets, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react'
 import { formatNumber, MATERIAL_LABELS, type MaterialType } from '@/lib/types'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { getActiveTanks } from '@/lib/services/tanks'
+import { getStockReadingsByDate, getStockReadingsWithTankByDate } from '@/lib/services/stocks'
+import { getWeighingsByDate } from '@/lib/services/weighings'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -13,68 +16,48 @@ export default async function DashboardPage() {
   yesterdayDate.setDate(now.getDate() - 1)
   const yesterday = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`
 
-  // Fetch tanks with today's readings
-  const { data: tanks } = await supabase
-    .from('tanks')
-    .select('*')
-    .eq('is_active', true)
-    .order('display_order')
-
-  // Fetch today's stock readings
-  const { data: todayReadings } = await supabase
-    .from('stock_readings')
-    .select('*, tank:tanks(*)')
-    .eq('reading_date', today)
-
-  // Fetch yesterday's stock readings for comparison
-  const { data: yesterdayReadings } = await supabase
-    .from('stock_readings')
-    .select('tank_id, value, value_kg')
-    .eq('reading_date', yesterday)
-
-  // Fetch today's weighings
-  const { data: todayWeighings } = await supabase
-    .from('weighings')
-    .select('*, product:products(*)')
-    .eq('date', today)
+  const [tanks, todayReadings, yesterdayReadings, todayWeighings] = await Promise.all([
+    getActiveTanks(supabase),
+    getStockReadingsWithTankByDate(supabase, today),
+    getStockReadingsByDate(supabase, yesterday),
+    getWeighingsByDate(supabase, today),
+  ])
 
   // Calculate summary by material type
   const stocksByMaterial: Record<string, { today: number; yesterday: number; unit: string }> = {}
   
-  todayReadings?.forEach((reading) => {
+  todayReadings.forEach((reading) => {
     const tank = reading.tank
-    if (tank) {
-      const materialType = tank.material_type as MaterialType
-      if (!stocksByMaterial[materialType]) {
-        stocksByMaterial[materialType] = { today: 0, yesterday: 0, unit: tank.unit }
-      }
-      stocksByMaterial[materialType].today += reading.value_kg || (reading.value * tank.density)
+    const materialType = tank.material_type as MaterialType
+    if (!stocksByMaterial[materialType]) {
+      stocksByMaterial[materialType] = { today: 0, yesterday: 0, unit: tank.unit }
     }
+    stocksByMaterial[materialType].today += reading.value_kg ?? (reading.value * tank.density)
   })
 
-  yesterdayReadings?.forEach((reading) => {
-    const tank = tanks?.find(t => t.id === reading.tank_id)
+  yesterdayReadings.forEach((reading) => {
+    const tank = tanks.find(t => t.id === reading.tank_id)
     if (tank) {
       const materialType = tank.material_type as MaterialType
       if (!stocksByMaterial[materialType]) {
         stocksByMaterial[materialType] = { today: 0, yesterday: 0, unit: tank.unit }
       }
-      stocksByMaterial[materialType].yesterday += reading.value_kg || (reading.value * tank.density)
+      stocksByMaterial[materialType].yesterday += reading.value_kg ?? (reading.value * tank.density)
     }
   })
 
   // Calculate weighing totals
   const receptionTotal = todayWeighings
-    ?.filter(w => w.type === 'recepcion')
-    .reduce((acc, w) => acc + w.weight_net, 0) || 0
+    .filter(w => w.type === 'recepcion')
+    .reduce((acc, w) => acc + w.weight_net, 0)
 
   const dispatchTotal = todayWeighings
-    ?.filter(w => w.type === 'despacho')
-    .reduce((acc, w) => acc + w.weight_net, 0) || 0
+    .filter(w => w.type === 'despacho')
+    .reduce((acc, w) => acc + w.weight_net, 0)
 
   // Check completeness
-  const totalTanks = tanks?.length || 0
-  const recordedTanks = todayReadings?.length || 0
+  const totalTanks = tanks.length
+  const recordedTanks = todayReadings.length
   const stockCompleteness = totalTanks > 0 ? Math.round((recordedTanks / totalTanks) * 100) : 0
 
   // Key materials for quick view
@@ -142,7 +125,7 @@ export default async function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(receptionTotal)} Tn</div>
             <p className="text-xs text-muted-foreground">
-              {todayWeighings?.filter(w => w.type === 'recepcion').length || 0} pesadas
+              {todayWeighings.filter(w => w.type === 'recepcion').length} pesadas
             </p>
           </CardContent>
         </Card>
@@ -158,7 +141,7 @@ export default async function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(dispatchTotal)} Tn</div>
             <p className="text-xs text-muted-foreground">
-              {todayWeighings?.filter(w => w.type === 'despacho').length || 0} pesadas
+              {todayWeighings.filter(w => w.type === 'despacho').length} pesadas
             </p>
           </CardContent>
         </Card>
@@ -226,17 +209,17 @@ export default async function DashboardPage() {
             <CardDescription>Pesadas de recepción del día</CardDescription>
           </CardHeader>
           <CardContent>
-            {todayWeighings?.filter(w => w.type === 'recepcion').length === 0 ? (
+            {todayWeighings.filter(w => w.type === 'recepcion').length === 0 ? (
               <p className="text-sm text-muted-foreground">No hay recepciones hoy</p>
             ) : (
               <div className="space-y-3">
                 {todayWeighings
-                  ?.filter(w => w.type === 'recepcion')
+                  .filter(w => w.type === 'recepcion')
                   .slice(0, 5)
                   .map((weighing) => (
                     <div key={weighing.id} className="flex items-center justify-between border-b pb-2 last:border-0">
                       <div>
-                        <p className="font-medium text-sm">{weighing.product?.name}</p>
+                        <p className="font-medium text-sm">{weighing.product.name}</p>
                         <p className="text-xs text-muted-foreground">{weighing.company || 'Sin empresa'}</p>
                       </div>
                       <div className="text-right">
@@ -260,17 +243,17 @@ export default async function DashboardPage() {
             <CardDescription>Pesadas de despacho del día</CardDescription>
           </CardHeader>
           <CardContent>
-            {todayWeighings?.filter(w => w.type === 'despacho').length === 0 ? (
+            {todayWeighings.filter(w => w.type === 'despacho').length === 0 ? (
               <p className="text-sm text-muted-foreground">No hay despachos hoy</p>
             ) : (
               <div className="space-y-3">
                 {todayWeighings
-                  ?.filter(w => w.type === 'despacho')
+                  .filter(w => w.type === 'despacho')
                   .slice(0, 5)
                   .map((weighing) => (
                     <div key={weighing.id} className="flex items-center justify-between border-b pb-2 last:border-0">
                       <div>
-                        <p className="font-medium text-sm">{weighing.product?.name}</p>
+                        <p className="font-medium text-sm">{weighing.product.name}</p>
                         <p className="text-xs text-muted-foreground">{weighing.company || 'Sin empresa'}</p>
                       </div>
                       <div className="text-right">

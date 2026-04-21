@@ -1,0 +1,6 @@
+// Barrel export — importar servicios desde '@/lib/services'
+export * from './tanks'
+export * from './stocks'
+export * from './weighings'
+export * from './products'
+export * from './profiles'

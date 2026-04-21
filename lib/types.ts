@@ -65,8 +65,11 @@ export interface StockReading {
   user_id: string
   created_at: string
   updated_at: string
-  // Joined fields
-  tank?: Tank
+}
+
+/** StockReading con el tanque cargado (resultado de queries con join) */
+export interface StockReadingWithTank extends StockReading {
+  tank: Tank
 }
 
 export interface FlowmeterReading {
@@ -103,8 +106,11 @@ export interface Weighing {
   user_id: string
   created_at: string
   updated_at: string
-  // Joined fields
-  product?: Product
+}
+
+/** Weighing con el producto cargado (resultado de queries con join) */
+export interface WeighingWithProduct extends Weighing {
+  product: Product
 }
 
 export interface DailyClosure {
