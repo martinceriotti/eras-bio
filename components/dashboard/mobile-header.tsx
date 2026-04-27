@@ -19,6 +19,7 @@ import {
   Settings,
   LogOut,
   Gauge,
+  Building2,
 } from 'lucide-react'
 import type { Profile } from '@/lib/types'
 import { ROLE_LABELS } from '@/lib/types'
@@ -35,6 +36,7 @@ const navigation = [
   { name: 'Producción', href: '/dashboard/production', icon: Factory },
   { name: 'Consumos', href: '/dashboard/consumption', icon: TrendingUp },
   { name: 'Reportes', href: '/dashboard/reports', icon: FileText },
+  { name: 'Empresas', href: '/dashboard/companies', icon: Building2 },
 ]
 
 const adminNavigation = [
