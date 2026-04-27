@@ -27,6 +27,7 @@ import {
   LogOut,
   User,
   Gauge,
+  Building2,
 } from 'lucide-react'
 import type { Profile } from '@/lib/types'
 import { ROLE_LABELS } from '@/lib/types'
@@ -70,6 +71,11 @@ const navigation = [
     name: 'Reportes',
     href: '/dashboard/reports',
     icon: FileText,
+  },
+  {
+    name: 'Empresas',
+    href: '/dashboard/companies',
+    icon: Building2,
   },
 ]
 

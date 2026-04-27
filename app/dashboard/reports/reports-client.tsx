@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Calendar as CalendarIcon, Download, FileText, Filter } from 'lucide-react'
+import { Calendar as CalendarIcon, Download, FileText, Filter, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -12,16 +12,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { formatNumber, formatDate, calculateValueKg, kgToTn, litersToKg } from '@/lib/types'
-import type { Product, Tank, WeighingWithProduct, StockReading, MaterialType } from '@/lib/types'
+import type { Product, Tank, WeighingWithProduct, StockReading, MaterialType, Company } from '@/lib/types'
 
 interface ReportsClientProps {
   products: Product[]
   tanks: Tank[]
 }
 
-type ReportType = 'weighings' | 'stocks' | 'production'
+type ReportType = 'weighings' | 'stocks' | 'production' | 'company'
 
 interface DailyProductionData {
   date: string
@@ -42,6 +43,18 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
   const [weighingsData, setWeighingsData] = useState<WeighingWithProduct[]>([])
   const [stocksData, setStocksData] = useState<(StockReading & { tank: Tank })[]>([])
   const [productionData, setProductionData] = useState<DailyProductionData[]>([])
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
+  const [companyWeighingsData, setCompanyWeighingsData] = useState<WeighingWithProduct[]>([])
+
+  useEffect(() => {
+    supabase
+      .from('companies')
+      .select('*')
+      .eq('is_active', true)
+      .order('name')
+      .then(({ data }) => setCompanies(data || []))
+  }, [supabase])
 
   const handleGenerateReport = async () => {
     setLoading(true)
@@ -153,6 +166,20 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
         setProductionData(dailyData)
         setWeighingsData([])
         setStocksData([])
+        setCompanyWeighingsData([])
+      } else if (reportType === 'company') {
+        if (!selectedCompanyId) { setLoading(false); return }
+        const { data } = await supabase
+          .from('weighings')
+          .select('*, product:products(*)')
+          .eq('company_id', selectedCompanyId)
+          .gte('date', fromStr)
+          .lte('date', toStr)
+          .order('date', { ascending: false })
+        setCompanyWeighingsData(data || [])
+        setWeighingsData([])
+        setStocksData([])
+        setProductionData([])
       }
     } catch (error) {
       console.error('Error generating report:', error)
@@ -184,6 +211,13 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
         const valueKg = s.tank ? calculateValueKg(s.tank, s.value) : (s.value_kg || 0)
         csvContent += `${formatDate(s.reading_date)},${s.tank?.name || ''},${s.tank?.code || ''},${s.value},${s.tank?.unit || ''},${formatNumber(valueKg)}\n`
       })
+    } else if (reportType === 'company' && companyWeighingsData.length > 0) {
+      const companyName = companies.find(c => c.id === selectedCompanyId)?.name || 'empresa'
+      filename = `empresa_${companyName.replace(/\s+/g, '_')}_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
+      csvContent = 'Fecha,Tipo,Producto,Remito,Chofer,Patente,Peso Bruto (kg),Peso Tara (kg),Peso Neto (Tn)\n'
+      companyWeighingsData.forEach(w => {
+        csvContent += `${formatDate(w.date)},${w.type === 'recepcion' ? 'Recepción' : 'Despacho'},${w.product?.name || ''},${w.remito_number || ''},${w.driver || ''},${w.license_plate || ''},${w.weight_gross || ''},${w.weight_tare || ''},${formatNumber(w.weight_net / 1000, 3)}\n`
+      })
     }
 
     if (csvContent) {
@@ -211,7 +245,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
           <CardDescription>Selecciona el tipo de reporte y el rango de fechas</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <Label>Tipo de Reporte</Label>
               <Select value={reportType} onValueChange={(v) => setReportType(v as ReportType)}>
@@ -222,9 +256,32 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
                   <SelectItem value="weighings">Pesajes (Balanza)</SelectItem>
                   <SelectItem value="stocks">Stocks de Tanques</SelectItem>
                   <SelectItem value="production">Producción</SelectItem>
+                  <SelectItem value="company">Por Empresa</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {reportType === 'company' && (
+              <div className="space-y-2">
+                <Label>Empresa</Label>
+                <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar empresa..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map(c => (
+                      <SelectItem key={c.id} value={c.id}>
+                        <span className="flex items-center gap-2">
+                          {c.name}
+                          {c.is_supplier && !c.is_client && <span className="text-xs text-muted-foreground">· Prov.</span>}
+                          {c.is_client && !c.is_supplier && <span className="text-xs text-muted-foreground">· Cliente</span>}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Desde</Label>
@@ -279,7 +336,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
       </Card>
 
       {/* Results */}
-      {(weighingsData.length > 0 || stocksData.length > 0 || productionData.length > 0) && (
+      {(weighingsData.length > 0 || stocksData.length > 0 || productionData.length > 0 || companyWeighingsData.length > 0) && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -288,6 +345,12 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
                 {reportType === 'weighings' && `${weighingsData.length} pesajes encontrados`}
                 {reportType === 'stocks' && `${stocksData.length} lecturas encontradas`}
                 {reportType === 'production' && `${productionData.length} días`}
+                {reportType === 'company' && (() => {
+                  const co = companies.find(c => c.id === selectedCompanyId)
+                  const recepciones = companyWeighingsData.filter(w => w.type === 'recepcion').length
+                  const despachos = companyWeighingsData.filter(w => w.type === 'despacho').length
+                  return `${co?.name || 'Empresa'} · ${recepciones} recepciones, ${despachos} despachos`
+                })()}
               </CardDescription>
             </div>
             <Button variant="outline" onClick={exportToCSV}>
@@ -414,11 +477,78 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
                 </Table>
               </div>
             )}
+
+            {reportType === 'company' && companyWeighingsData.length > 0 && (() => {
+              const recepciones = companyWeighingsData.filter(w => w.type === 'recepcion')
+              const despachos   = companyWeighingsData.filter(w => w.type === 'despacho')
+              const totalRecTn  = recepciones.reduce((s, w) => s + w.weight_net / 1000, 0)
+              const totalDespTn = despachos.reduce((s, w) => s + w.weight_net / 1000, 0)
+
+              return (
+                <div className="space-y-6">
+                  {/* Totales resumen */}
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <div className="rounded-lg border p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Recepciones</p>
+                      <p className="text-2xl font-bold text-green-600">{recepciones.length}</p>
+                    </div>
+                    <div className="rounded-lg border p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Total Recibido (Tn)</p>
+                      <p className="text-2xl font-bold text-green-600">{formatNumber(totalRecTn, 3)}</p>
+                    </div>
+                    <div className="rounded-lg border p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Despachos</p>
+                      <p className="text-2xl font-bold text-blue-600">{despachos.length}</p>
+                    </div>
+                    <div className="rounded-lg border p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Total Despachado (Tn)</p>
+                      <p className="text-2xl font-bold text-blue-600">{formatNumber(totalDespTn, 3)}</p>
+                    </div>
+                  </div>
+
+                  {/* Tabla detalle */}
+                  <div className="overflow-x-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Producto</TableHead>
+                          <TableHead>Remito</TableHead>
+                          <TableHead>Chofer</TableHead>
+                          <TableHead>Patente</TableHead>
+                          <TableHead className="text-right">Peso Neto (Tn)</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {companyWeighingsData.map((w) => (
+                          <TableRow key={w.id}>
+                            <TableCell>{formatDate(w.date)}</TableCell>
+                            <TableCell>
+                              <Badge variant={w.type === 'recepcion' ? 'default' : 'secondary'}>
+                                {w.type === 'recepcion' ? 'Recepción' : 'Despacho'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{w.product?.name || '-'}</TableCell>
+                            <TableCell className="font-mono text-sm">{w.remito_number || '-'}</TableCell>
+                            <TableCell>{w.driver || '-'}</TableCell>
+                            <TableCell className="font-mono text-sm">{w.license_plate || '-'}</TableCell>
+                            <TableCell className="text-right font-mono font-semibold">
+                              {formatNumber(w.weight_net / 1000, 3)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )
+            })()}
           </CardContent>
         </Card>
       )}
 
-      {weighingsData.length === 0 && stocksData.length === 0 && productionData.length === 0 && !loading && (
+      {weighingsData.length === 0 && stocksData.length === 0 && productionData.length === 0 && companyWeighingsData.length === 0 && !loading && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />

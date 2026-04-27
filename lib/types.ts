@@ -90,12 +90,29 @@ export interface Product {
   created_at: string
 }
 
+export interface Company {
+  id: string
+  name: string
+  cuit: string | null
+  email: string | null
+  phone: string | null
+  address: string | null
+  is_supplier: boolean
+  is_client: boolean
+  is_active: boolean
+  notes: string | null
+  created_at: string
+  updated_at: string | null
+  user_id: string | null
+}
+
 export interface Weighing {
   id: string
   date: string
   type: WeighingType
   product_id: string
   company: string | null
+  company_id: string | null
   remito_number: string | null
   driver: string | null
   license_plate: string | null
@@ -111,6 +128,12 @@ export interface Weighing {
 /** Weighing con el producto cargado (resultado de queries con join) */
 export interface WeighingWithProduct extends Weighing {
   product: Product
+}
+
+/** Weighing con producto Y empresa cargados */
+export interface WeighingWithDetails extends Weighing {
+  product: Product
+  company_obj: Company | null
 }
 
 export interface DailyClosure {
