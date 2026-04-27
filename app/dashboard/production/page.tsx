@@ -625,7 +625,7 @@ export default function ProductionPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </>
       )}
     </div>
   )
