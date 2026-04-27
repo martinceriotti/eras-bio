@@ -15,15 +15,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { CalendarIcon, Plus, Loader2, Scale, Trash2, Pencil, TrendingDown, TrendingUp } from 'lucide-react'
+import { CalendarIcon, Plus, Loader2, Scale, Trash2, Pencil, TrendingDown, TrendingUp, ExternalLink } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { formatNumber, type Product, type WeighingWithProduct, type WeighingType } from '@/lib/types'
+import Link from 'next/link'
+import { formatNumber, type Product, type Company, type WeighingWithProduct, type WeighingType } from '@/lib/types'
 
 export default function WeighingsPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [weighings, setWeighings] = useState<WeighingWithProduct[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [companies, setCompanies] = useState<Company[]>([])
   const [canEdit, setCanEdit] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [userId, setUserId] = useState<string>('')
@@ -37,7 +39,8 @@ export default function WeighingsPage() {
   const [formData, setFormData] = useState({
     type: 'recepcion' as WeighingType,
     product_id: '',
-    company: '',
+    company_id: '',   // '' = sin empresa vinculada
+    company: '',      // texto libre (fallback)
     remito_number: '',
     driver: '',
     license_plate: '',
@@ -67,14 +70,14 @@ export default function WeighingsPage() {
         setIsAdmin(role === 'admin')
       }
 
-      // Fetch products
-      const { data: productsData } = await supabase
-        .from('products')
-        .select('*')
-        .eq('is_active', true)
-        .order('name')
+      // Fetch products y companies en paralelo
+      const [{ data: productsData }, { data: companiesData }] = await Promise.all([
+        supabase.from('products').select('*').eq('is_active', true).order('name'),
+        supabase.from('companies').select('*').eq('is_active', true).order('name'),
+      ])
 
       setProducts(productsData || [])
+      setCompanies(companiesData || [])
       setIsLoading(false)
     }
 
@@ -97,7 +100,18 @@ export default function WeighingsPage() {
   }, [selectedDate, supabase])
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData(prev => {
+      const next = { ...prev, [field]: value }
+      // Al cambiar el tipo, limpiar empresa si ya no corresponde
+      if (field === 'type' && prev.company_id) {
+        const co = companies.find(c => c.id === prev.company_id)
+        if (co) {
+          const valid = value === 'recepcion' ? co.is_supplier : co.is_client
+          if (!valid) next.company_id = ''
+        }
+      }
+      return next
+    })
   }
 
   const calculateNetWeight = () => {
@@ -111,6 +125,7 @@ export default function WeighingsPage() {
     setFormData({
       type: activeTab,
       product_id: '',
+      company_id: '',
       company: '',
       remito_number: '',
       driver: '',
@@ -127,6 +142,7 @@ export default function WeighingsPage() {
     setFormData({
       type: weighing.type,
       product_id: weighing.product_id,
+      company_id: weighing.company_id || '',
       company: weighing.company || '',
       remito_number: weighing.remito_number || '',
       driver: weighing.driver || '',
@@ -146,6 +162,11 @@ export default function WeighingsPage() {
     const netWeight = calculateNetWeight()
 
     try {
+      // Nombre de empresa: preferir el de la empresa vinculada
+      const selectedCompany = companies.find(c => c.id === formData.company_id)
+      const companyName = selectedCompany?.name || formData.company || null
+      const companyId   = formData.company_id || null
+
       if (editingWeighing) {
         // UPDATE
         const { data, error } = await supabase
@@ -153,7 +174,8 @@ export default function WeighingsPage() {
           .update({
             type: formData.type,
             product_id: formData.product_id,
-            company: formData.company || null,
+            company_id: companyId,
+            company: companyName,
             remito_number: formData.remito_number || null,
             driver: formData.driver || null,
             license_plate: formData.license_plate || null,
@@ -179,7 +201,8 @@ export default function WeighingsPage() {
             date: dateStr,
             type: formData.type,
             product_id: formData.product_id,
-            company: formData.company || null,
+            company_id: companyId,
+            company: companyName,
             remito_number: formData.remito_number || null,
             driver: formData.driver || null,
             license_plate: formData.license_plate || null,
@@ -334,12 +357,38 @@ export default function WeighingsPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Empresa / Proveedor</Label>
-                      <Input
-                        value={formData.company}
-                        onChange={(e) => handleInputChange('company', e.target.value)}
-                        placeholder="Nombre de la empresa"
-                      />
+                      <div className="flex items-center justify-between">
+                        <Label>Empresa / Proveedor</Label>
+                        <Link
+                          href="/dashboard/companies"
+                          target="_blank"
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          Nueva empresa
+                        </Link>
+                      </div>
+                      <Select
+                        value={formData.company_id || '__blank__'}
+                        onValueChange={(v) => handleInputChange('company_id', v === '__blank__' ? '' : v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin empresa (opcional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__blank__">— Sin empresa —</SelectItem>
+                          {companies
+                            .filter(c =>
+                              formData.type === 'recepcion' ? c.is_supplier : c.is_client
+                            )
+                            .map(c => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.name}
+                                {c.is_supplier && c.is_client && ' · Prov./Cliente'}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label>N° Remito</Label>
