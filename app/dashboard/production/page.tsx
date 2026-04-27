@@ -288,12 +288,26 @@ export default function ProductionPage() {
     glicerina: { label: 'Glicerina',  color: 'var(--chart-2)' },
   }
 
-  // Filter rows that have any data
-  const tableRows = productionData.filter(day =>
+  // Filtros independientes por material
+  const biodieselRows = productionData.filter(day =>
     day.biodiesel_stock_inicial > 0 ||
     day.biodiesel_stock_final > 0   ||
     day.biodiesel_despachos > 0     ||
     day.biodiesel_ingresos > 0
+  )
+
+  const aceiteNeutroRows = productionData.filter(day =>
+    day.aceite_neutro_stock_inicial > 0 ||
+    day.aceite_neutro_stock_final > 0   ||
+    day.aceite_neutro_despachos > 0     ||
+    day.aceite_neutro_ingresos > 0      ||
+    day.caudalimetro_consumo > 0
+  )
+
+  const borraRows = productionData.filter(day =>
+    day.borra_stock_inicial > 0 ||
+    day.borra_stock_final > 0   ||
+    day.borra_despachos > 0
   )
 
   return (
@@ -444,7 +458,7 @@ export default function ProductionPage() {
                   Producción = Stock Final − Stock Inicial + Despachos − Ingresos
                 </CardDescription>
               </div>
-              <Button variant="outline" size="sm" onClick={exportToCSV} disabled={tableRows.length === 0}>
+              <Button variant="outline" size="sm" onClick={exportToCSV} disabled={biodieselRows.length === 0}>
                 <Download className="mr-2 h-4 w-4" />
                 Exportar CSV
               </Button>
@@ -464,13 +478,13 @@ export default function ProductionPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {tableRows.length === 0 ? (
+                    {biodieselRows.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                           No hay datos para este mes
                         </TableCell>
                       </TableRow>
-                    ) : tableRows.map((day) => (
+                    ) : biodieselRows.map((day) => (
                       <TableRow key={day.date} className={!day.isComplete ? 'opacity-50' : ''}>
                         <TableCell>{formatDate(day.date)}</TableCell>
                         <TableCell className="text-right font-mono">{formatNumber(day.biodiesel_stock_inicial)}</TableCell>
@@ -517,13 +531,13 @@ export default function ProductionPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {tableRows.length === 0 ? (
+                    {aceiteNeutroRows.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                           No hay datos para este mes
                         </TableCell>
                       </TableRow>
-                    ) : tableRows.map((day) => (
+                    ) : aceiteNeutroRows.map((day) => (
                       <TableRow key={day.date} className={!day.isComplete ? 'opacity-50' : ''}>
                         <TableCell>{formatDate(day.date)}</TableCell>
                         <TableCell className="text-right font-mono">{formatNumber(day.aceite_neutro_stock_inicial)}</TableCell>
@@ -563,13 +577,13 @@ export default function ProductionPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {tableRows.length === 0 ? (
+                    {borraRows.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
                           No hay datos para este mes
                         </TableCell>
                       </TableRow>
-                    ) : tableRows.map((day) => (
+                    ) : borraRows.map((day) => (
                       <TableRow key={day.date} className={!day.isComplete ? 'opacity-50' : ''}>
                         <TableCell>{formatDate(day.date)}</TableCell>
                         <TableCell className="text-right font-mono">{formatNumber(day.borra_stock_inicial)}</TableCell>
