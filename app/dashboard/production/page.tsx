@@ -90,8 +90,11 @@ export default function ProductionPage() {
       supabase
         .from('flowmeter_readings')
         .select('*')
-        .gte('reading_date', format(subDays(startDate, 1), 'yyyy-MM-dd'))
-        .lte('reading_date', format(endDate, 'yyyy-MM-dd')),
+        // Extendemos 40 días hacia atrás para encontrar la lectura previa
+        // aunque no haya habido lecturas en días consecutivos
+        .gte('reading_date', format(subDays(startDate, 40), 'yyyy-MM-dd'))
+        .lte('reading_date', format(endDate, 'yyyy-MM-dd'))
+        .order('reading_date', { ascending: true }),
     ])
 
     // Process data for each day
@@ -174,9 +177,14 @@ export default function ProductionPage() {
       const metanolIngresos      = filterWeighings('recepcion', 'metanol')
       const glicerinaDespachos   = filterWeighings('despacho', 'glicerina')
 
-      // ── Caudalímetro (consumo diario = diferencia entre lecturas acumuladas) ──
+      // ── Caudalímetro ──────────────────────────────────────────
+      // Solo se calcula si existe lectura para este día.
+      // La lectura previa es la más reciente disponible ANTES de esta fecha
+      // (no necesariamente el día calendario anterior).
       const currentFlowmeter = flowmeterReadings?.find(f => f.reading_date === dateStr)
-      const prevFlowmeter    = flowmeterReadings?.find(f => f.reading_date === prevDateStr)
+      const prevFlowmeter = flowmeterReadings
+        ?.filter(f => f.reading_date < dateStr)
+        .at(-1) // el array ya viene ordenado ASC, el último es el más reciente
       // accumulated_value está en Tn
       const caudalimetroConsumo = (currentFlowmeter && prevFlowmeter)
         ? Math.max(0, currentFlowmeter.accumulated_value - prevFlowmeter.accumulated_value)
