@@ -250,34 +250,37 @@ export default function ProductionPage() {
     )
     if (rows.length === 0) return
 
+    const n = (v: number) => v.toFixed(2)
+    const SEP = ';'
+
     const filename = `produccion_${format(selectedMonth, 'yyyyMM')}.csv`
-    let csv = 'Fecha,Bio Stock Ini,Bio Stock Fin,Bio Despachos,Bio Ingresos,Biodiesel Prod,' +
-              'AN Stock Ini,AN Stock Fin,AN Despachos,AN Ingresos,Caudalímetro,AN Producido,' +
-              'Gomas Stock Ini,Gomas Stock Fin,Gomas Despachos,Gomas Producidas,Estado\n'
+    let csv = ['Fecha','Bio Stock Ini (Tn)','Bio Stock Fin (Tn)','Bio Despachos (Tn)','Bio Ingresos (Tn)','Biodiesel Prod (Tn)',
+               'AN Stock Ini (Tn)','AN Stock Fin (Tn)','AN Despachos (Tn)','AN Ingresos (Tn)','Caudalimetro (Tn)','AN Producido (Tn)',
+               'Gomas Stock Ini (Tn)','Gomas Stock Fin (Tn)','Gomas Despachos (Tn)','Gomas Producidas (Tn)','Estado'].join(SEP) + '\n'
 
     rows.forEach(d => {
       csv += [
         formatDate(d.date),
-        formatNumber(d.biodiesel_stock_inicial),
-        formatNumber(d.biodiesel_stock_final),
-        formatNumber(d.biodiesel_despachos),
-        formatNumber(d.biodiesel_ingresos),
-        formatNumber(d.biodiesel_producido),
-        formatNumber(d.aceite_neutro_stock_inicial),
-        formatNumber(d.aceite_neutro_stock_final),
-        formatNumber(d.aceite_neutro_despachos),
-        formatNumber(d.aceite_neutro_ingresos),
-        formatNumber(d.caudalimetro_consumo),
-        formatNumber(d.aceite_neutro_producido),
-        formatNumber(d.gomas_stock_inicial),
-        formatNumber(d.gomas_stock_final),
-        formatNumber(d.gomas_despachos),
-        formatNumber(d.gomas_producida),
+        n(d.biodiesel_stock_inicial),
+        n(d.biodiesel_stock_final),
+        n(d.biodiesel_despachos),
+        n(d.biodiesel_ingresos),
+        n(d.biodiesel_producido),
+        n(d.aceite_neutro_stock_inicial),
+        n(d.aceite_neutro_stock_final),
+        n(d.aceite_neutro_despachos),
+        n(d.aceite_neutro_ingresos),
+        n(d.caudalimetro_consumo),
+        n(d.aceite_neutro_producido),
+        n(d.gomas_stock_inicial),
+        n(d.gomas_stock_final),
+        n(d.gomas_despachos),
+        n(d.gomas_producida),
         d.isComplete ? 'Completo' : 'Incompleto',
-      ].join(',') + '\n'
+      ].join(SEP) + '\n'
     })
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = filename
@@ -610,20 +613,4 @@ export default function ProductionPage() {
                       <TableRow key={day.date} className={!day.isComplete ? 'opacity-50' : ''}>
                         <TableCell>{formatDate(day.date)}</TableCell>
                         <TableCell className="text-right font-mono">{formatNumber(day.gomas_stock_inicial)}</TableCell>
-                        <TableCell className="text-right font-mono">{formatNumber(day.gomas_stock_final)}</TableCell>
-                        <TableCell className="text-right font-mono">{formatNumber(day.gomas_despachos)}</TableCell>
-                        <TableCell className="text-right font-mono font-semibold">
-                          {formatNumber(day.gomas_producida)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
-    </div>
-  )
-}
+                      

@@ -189,39 +189,41 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
   }
 
   const exportToCSV = () => {
+    const SEP = ';'
+    const n   = (v: number) => v.toFixed(3)
     let csvContent = ''
     let filename = ''
 
     if (reportType === 'production' && productionData.length > 0) {
       filename = `produccion_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
-      csvContent = 'Fecha,Biodiesel Producido (Tn),Biodiesel Despachado (Tn),Aceite Consumido (Tn),Metanol Consumido (Tn),Glicerina Producida (Tn),Completo\n'
+      csvContent = ['Fecha','Biodiesel Producido (Tn)','Biodiesel Despachado (Tn)','Aceite Consumido (Tn)','Metanol Consumido (Tn)','Glicerina Producida (Tn)','Completo'].join(SEP) + '\n'
       productionData.forEach(d => {
-        csvContent += `${formatDate(d.date)},${formatNumber(d.biodiesel_producido, 3)},${formatNumber(d.biodiesel_despachos, 3)},${formatNumber(d.aceite_consumido, 3)},${formatNumber(d.metanol_consumido, 3)},${formatNumber(d.glicerina_producida, 3)},${d.isComplete ? 'Sí' : 'No'}\n`
+        csvContent += [formatDate(d.date), n(d.biodiesel_producido), n(d.biodiesel_despachos), n(d.aceite_consumido), n(d.metanol_consumido), n(d.glicerina_producida), d.isComplete ? 'Si' : 'No'].join(SEP) + '\n'
       })
     } else if (reportType === 'weighings' && weighingsData.length > 0) {
       filename = `pesajes_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
-      csvContent = 'Fecha,Tipo,Producto,Empresa,Remito,Peso Bruto,Peso Tara,Peso Neto\n'
+      csvContent = ['Fecha','Tipo','Producto','Empresa','Remito','Peso Bruto (kg)','Peso Tara (kg)','Peso Neto (Tn)'].join(SEP) + '\n'
       weighingsData.forEach(w => {
-        csvContent += `${formatDate(w.date)},${w.type},${w.product?.name || ''},${w.company || ''},${w.remito_number || ''},${w.weight_gross || ''},${w.weight_tare || ''},${w.weight_net}\n`
+        csvContent += [formatDate(w.date), w.type === 'recepcion' ? 'Recepcion' : 'Despacho', w.product?.name || '', w.company || '', w.remito_number || '', w.weight_gross ?? '', w.weight_tare ?? '', (w.weight_net / 1000).toFixed(3)].join(SEP) + '\n'
       })
     } else if (reportType === 'stocks' && stocksData.length > 0) {
       filename = `stocks_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
-      csvContent = 'Fecha,Tanque,Codigo,Valor,Unidad,Kg\n'
+      csvContent = ['Fecha','Tanque','Codigo','Valor','Unidad','Kg'].join(SEP) + '\n'
       stocksData.forEach(s => {
         const valueKg = s.tank ? calculateValueKg(s.tank, s.value) : (s.value_kg || 0)
-        csvContent += `${formatDate(s.reading_date)},${s.tank?.name || ''},${s.tank?.code || ''},${s.value},${s.tank?.unit || ''},${formatNumber(valueKg)}\n`
+        csvContent += [formatDate(s.reading_date), s.tank?.name || '', s.tank?.code || '', s.value.toFixed(2), s.tank?.unit || '', valueKg.toFixed(2)].join(SEP) + '\n'
       })
     } else if (reportType === 'company' && companyWeighingsData.length > 0) {
       const companyName = companies.find(c => c.id === selectedCompanyId)?.name || 'empresa'
       filename = `empresa_${companyName.replace(/\s+/g, '_')}_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
-      csvContent = 'Fecha,Tipo,Producto,Remito,Chofer,Patente,Peso Bruto (kg),Peso Tara (kg),Peso Neto (Tn)\n'
+      csvContent = ['Fecha','Tipo','Producto','Remito','Chofer','Patente','Peso Bruto (kg)','Peso Tara (kg)','Peso Neto (Tn)'].join(SEP) + '\n'
       companyWeighingsData.forEach(w => {
-        csvContent += `${formatDate(w.date)},${w.type === 'recepcion' ? 'Recepción' : 'Despacho'},${w.product?.name || ''},${w.remito_number || ''},${w.driver || ''},${w.license_plate || ''},${w.weight_gross || ''},${w.weight_tare || ''},${formatNumber(w.weight_net / 1000, 3)}\n`
+        csvContent += [formatDate(w.date), w.type === 'recepcion' ? 'Recepcion' : 'Despacho', w.product?.name || '', w.remito_number || '', w.driver || '', w.license_plate || '', w.weight_gross ?? '', w.weight_tare ?? '', (w.weight_net / 1000).toFixed(3)].join(SEP) + '\n'
       })
     }
 
     if (csvContent) {
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
       const link = document.createElement('a')
       link.href = URL.createObjectURL(blob)
       link.download = filename

@@ -8,7 +8,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { CalendarIcon, Loader2, AlertCircle, FlaskConical, Fuel } from 'lucide-react'
+import { CalendarIcon, Loader2, AlertCircle, FlaskConical, Fuel, Download } from 'lucide-react'
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { formatNumber, litersToKg, kgToTn, formatDate, type MaterialType } from '@/lib/types'
@@ -246,6 +246,51 @@ export default function ConsumptionPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  // ── Export CSV ────────────────────────────────────────────────────────────
+  const exportToCSV = () => {
+    if (dailyData.length === 0) return
+    const SEP = ';'
+    const n   = (v: number | null) => v != null ? v.toFixed(2) : ''
+
+    const filename = `consumos_${format(selectedMonth, 'yyyyMM')}.csv`
+    const header = [
+      'Fecha',
+      'AC Consumido (Tn)', 'AN Producido (Tn)', 'Merma (%)',
+      'Soda (kg)', 'CE Soda (kg/Tn AN)',
+      'Ac. Fosfórico (kg)', 'CE Ac. Fosfórico (kg/Tn AN)',
+      'Biodiesel Prod (Tn)',
+      'Metanol (kg)', 'CE Metanol (kg/Tn Bio)',
+      'Ac. Cítrico (kg)', 'CE Ac. Cítrico (kg/Tn Bio)',
+      'Ac. Clorhídrico (kg)', 'CE Ac. Clorhídrico (kg/Tn Bio)',
+      'Metilato (kg)', 'CE Metilato (kg/Tn Bio)',
+      'Antioxidante (kg)', 'CE Antioxidante (kg/Tn Bio)',
+      'GLP (kg)', 'CE GLP (kg/Tn Bio)',
+    ].join(SEP)
+
+    const rows = dailyData.map(d => [
+      formatDate(d.date),
+      n(kgToTn(d.aceite_crudo_consumido_kg)),
+      n(kgToTn(d.aceite_neutro_producido_kg)),
+      n(d.merma),
+      n(d.soda_kg),            n(d.ce_soda),
+      n(d.acido_fosforico_kg), n(d.ce_acido_fosforico),
+      n(kgToTn(d.biodiesel_kg)),
+      n(d.metanol_kg),         n(d.ce_metanol),
+      n(d.acido_citrico_kg),   n(d.ce_acido_citrico),
+      n(d.acido_clorhidrico_kg), n(d.ce_acido_clorhidrico),
+      n(d.metilato_kg),        n(d.ce_metilato),
+      n(d.antioxidante_kg),    n(d.ce_antioxidante),
+      n(d.glp_kg),             n(d.ce_glp),
+    ].join(SEP))
+
+    const csv = '\uFEFF' + header + '\n' + rows.join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = filename
+    link.click()
+  }
+
   // ── Acumulados mensuales ───────────────────────────────────────────────────
 
   const refinadoDays  = dailyData.filter(d => d.aceite_neutro_producido_kg > 0)
@@ -288,7 +333,12 @@ export default function ConsumptionPage() {
           <h1 className="text-2xl font-bold text-foreground">Consumos Específicos</h1>
           <p className="text-muted-foreground">Insumos por tonelada producida — refinado y biodiesel</p>
         </div>
-        <Popover>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportToCSV} disabled={dailyData.length === 0}>
+            <Download className="mr-2 h-4 w-4" />
+            Exportar CSV
+          </Button>
+          <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-[200px] justify-start text-left font-normal">
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -305,6 +355,7 @@ export default function ConsumptionPage() {
             />
           </PopoverContent>
         </Popover>
+        </div>
       </div>
 
       {isLoading ? (
@@ -549,22 +600,4 @@ export default function ConsumptionPage() {
                           <TableCell className="text-right font-mono">
                             {formatNumber(kgToTn(d.biodiesel_kg))}
                           </TableCell>
-                          <TableCell className="text-right font-mono">
-                            {formatNumber(d.glp_kg, 0)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono font-semibold">
-                            {ceCell(d.ce_glp)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      )}
-    </div>
-  )
-}
+                          <TableCell className=
