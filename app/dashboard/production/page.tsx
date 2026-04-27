@@ -126,9 +126,9 @@ export default function ProductionPage() {
       const aceiteNeutroFinal = calculateMaterialTotal(currentReadings, 'aceite_neutro')
       const aceiteNeutroInicial = calculateMaterialTotal(previousReadings, 'aceite_neutro')
 
-      // ── Borra ──────────────────────────────────────────────────
-      const borraFinal = calculateMaterialTotal(currentReadings, 'borra')
-      const borraInicial = calculateMaterialTotal(previousReadings, 'borra')
+      // ── Borra (= Gomas) ───────────────────────────────────────
+      const borraFinal = calculateMaterialTotal(currentReadings, 'gomas')
+      const borraInicial = calculateMaterialTotal(previousReadings, 'gomas')
 
       // ── Metanol / Glicerina ────────────────────────────────────
       const metanolFinal = calculateMaterialTotal(currentReadings, 'metanol')
@@ -153,7 +153,7 @@ export default function ProductionPage() {
       const aceiteNeutroIngresos  = filterWeighings('recepcion', 'neutro')
 
       // Aceite genérico (para metanol/glicerina no se usa, pero sí para borra context)
-      const borraDespachos = filterWeighings('despacho', 'borra')
+      const borraDespachos = filterWeighings('despacho', 'goma')
 
       // Metanol / Glicerina
       const metanolIngresos      = filterWeighings('recepcion', 'metanol')

@@ -20,7 +20,6 @@ export type MaterialType =
   | 'glp'
   | 'repro'
   | 'efluentes'
-  | 'borra'
   | 'otros'
 
 export type TankUnit = 'liters' | 'bags' | 'percentage'
@@ -183,7 +182,6 @@ export const MATERIAL_LABELS: Record<MaterialType, string> = {
   glp: 'GLP',
   repro: 'Repro',
   efluentes: 'Efluentes',
-  borra: 'Borra',
   otros: 'Otros',
 }
 
