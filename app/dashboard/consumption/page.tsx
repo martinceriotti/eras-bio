@@ -247,48 +247,47 @@ export default function ConsumptionPage() {
   useEffect(() => { fetchData() }, [fetchData])
 
   // ── Export CSV ────────────────────────────────────────────────────────────
-  const exportToCSV = () => {
-    if (dailyData.length === 0) return
-    const SEP = ';'
-    const n   = (v: number | null) => v != null ? v.toFixed(2) : ''
+  const SEP = ';'
+  const nf  = (v: number | null) => v != null ? v.toFixed(2) : ''
 
-    const filename = `consumos_${format(selectedMonth, 'yyyyMM')}.csv`
-    const header = [
-      'Fecha',
-      'AC Consumido (Tn)', 'AN Producido (Tn)', 'Merma (%)',
-      'Soda (kg)', 'CE Soda (kg/Tn AN)',
-      'Ac. Fosfórico (kg)', 'CE Ac. Fosfórico (kg/Tn AN)',
-      'Biodiesel Prod (Tn)',
-      'Metanol (kg)', 'CE Metanol (kg/Tn Bio)',
-      'Ac. Cítrico (kg)', 'CE Ac. Cítrico (kg/Tn Bio)',
-      'Ac. Clorhídrico (kg)', 'CE Ac. Clorhídrico (kg/Tn Bio)',
-      'Metilato (kg)', 'CE Metilato (kg/Tn Bio)',
-      'Antioxidante (kg)', 'CE Antioxidante (kg/Tn Bio)',
-      'GLP (kg)', 'CE GLP (kg/Tn Bio)',
-    ].join(SEP)
-
-    const rows = dailyData.map(d => [
-      formatDate(d.date),
-      n(kgToTn(d.aceite_crudo_consumido_kg)),
-      n(kgToTn(d.aceite_neutro_producido_kg)),
-      n(d.merma),
-      n(d.soda_kg),            n(d.ce_soda),
-      n(d.acido_fosforico_kg), n(d.ce_acido_fosforico),
-      n(kgToTn(d.biodiesel_kg)),
-      n(d.metanol_kg),         n(d.ce_metanol),
-      n(d.acido_citrico_kg),   n(d.ce_acido_citrico),
-      n(d.acido_clorhidrico_kg), n(d.ce_acido_clorhidrico),
-      n(d.metilato_kg),        n(d.ce_metilato),
-      n(d.antioxidante_kg),    n(d.ce_antioxidante),
-      n(d.glp_kg),             n(d.ce_glp),
-    ].join(SEP))
-
-    const csv = '\uFEFF' + header + '\n' + rows.join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const downloadCSV = (csv: string, filename: string) => {
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = filename
     link.click()
+  }
+
+  const exportRefinadoCSV = () => {
+    if (refinadoDays.length === 0) return
+    const header = ['Fecha','AC Consumido (Tn)','AN Producido (Tn)','Merma (%)','Soda (kg)','CE Soda (kg/Tn AN)','Ac. Fosforico (kg)','CE Ac. Fosforico (kg/Tn AN)'].join(SEP)
+    const rows = refinadoDays.map(d => [
+      formatDate(d.date),
+      nf(kgToTn(d.aceite_crudo_consumido_kg)), nf(kgToTn(d.aceite_neutro_producido_kg)),
+      nf(d.merma), nf(d.soda_kg), nf(d.ce_soda), nf(d.acido_fosforico_kg), nf(d.ce_acido_fosforico),
+    ].join(SEP))
+    downloadCSV(header + '\n' + rows.join('\n'), `refinado_${format(selectedMonth, 'yyyyMM')}.csv`)
+  }
+
+  const exportBiodieselCSV = () => {
+    if (biodieselDays.length === 0) return
+    const header = ['Fecha','Biodiesel (Tn)','Metanol (kg)','CE Metanol (kg/Tn)','Ac. Citrico (kg)','CE Ac. Citrico (kg/Tn)','Ac. Clorhidrico (kg)','CE Ac. Clorhidrico (kg/Tn)','Metilato (kg)','CE Metilato (kg/Tn)','Antioxidante (kg)','CE Antioxidante (kg/Tn)'].join(SEP)
+    const rows = biodieselDays.map(d => [
+      formatDate(d.date), nf(kgToTn(d.biodiesel_kg)),
+      nf(d.metanol_kg), nf(d.ce_metanol), nf(d.acido_citrico_kg), nf(d.ce_acido_citrico),
+      nf(d.acido_clorhidrico_kg), nf(d.ce_acido_clorhidrico),
+      nf(d.metilato_kg), nf(d.ce_metilato), nf(d.antioxidante_kg), nf(d.ce_antioxidante),
+    ].join(SEP))
+    downloadCSV(header + '\n' + rows.join('\n'), `biodiesel_consumos_${format(selectedMonth, 'yyyyMM')}.csv`)
+  }
+
+  const exportGeneralCSV = () => {
+    if (biodieselDays.length === 0) return
+    const header = ['Fecha','Biodiesel (Tn)','GLP (kg)','CE GLP (kg/Tn)'].join(SEP)
+    const rows = biodieselDays.map(d => [
+      formatDate(d.date), nf(kgToTn(d.biodiesel_kg)), nf(d.glp_kg), nf(d.ce_glp),
+    ].join(SEP))
+    downloadCSV(header + '\n' + rows.join('\n'), `general_${format(selectedMonth, 'yyyyMM')}.csv`)
   }
 
   // ── Acumulados mensuales ───────────────────────────────────────────────────
@@ -333,12 +332,7 @@ export default function ConsumptionPage() {
           <h1 className="text-2xl font-bold text-foreground">Consumos Específicos</h1>
           <p className="text-muted-foreground">Insumos por tonelada producida — refinado y biodiesel</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={exportToCSV} disabled={dailyData.length === 0}>
-            <Download className="mr-2 h-4 w-4" />
-            Exportar CSV
-          </Button>
-          <Popover>
+        <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-[200px] justify-start text-left font-normal">
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -355,7 +349,6 @@ export default function ConsumptionPage() {
             />
           </PopoverContent>
         </Popover>
-        </div>
       </div>
 
       {isLoading ? (
@@ -429,11 +422,17 @@ export default function ConsumptionPage() {
 
             {/* Daily table */}
             <Card>
-              <CardHeader>
-                <CardTitle>Detalle Diario — Refinado</CardTitle>
-                <CardDescription>
-                  Merma = (1 − AN producido / AC consumido) × 100 — Consumos en kg / Tn AN producido
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Detalle Diario — Refinado</CardTitle>
+                  <CardDescription>
+                    Merma = (1 − AN producido / AC consumido) × 100 — Consumos en kg / Tn AN producido
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={exportRefinadoCSV} disabled={refinadoDays.length === 0}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar CSV
+                </Button>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
@@ -506,9 +505,15 @@ export default function ConsumptionPage() {
 
             {/* Daily table */}
             <Card>
-              <CardHeader>
-                <CardTitle>Detalle Diario — Biodiesel</CardTitle>
-                <CardDescription>Consumos en kg / Tn biodiesel producido</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Detalle Diario — Biodiesel</CardTitle>
+                  <CardDescription>Consumos en kg / Tn biodiesel producido</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={exportBiodieselCSV} disabled={biodieselDays.length === 0}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar CSV
+                </Button>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
@@ -571,9 +576,15 @@ export default function ConsumptionPage() {
 
             {/* Daily table */}
             <Card>
-              <CardHeader>
-                <CardTitle>Detalle Diario — GLP</CardTitle>
-                <CardDescription>kg de GLP por Tn de biodiesel producido</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Detalle Diario — GLP</CardTitle>
+                  <CardDescription>kg de GLP por Tn de biodiesel producido</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={exportGeneralCSV} disabled={biodieselDays.length === 0}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar CSV
+                </Button>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
