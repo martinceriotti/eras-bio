@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { CalendarIcon, Loader2, Factory, AlertCircle, Download } from 'lucide-react'
 import { format, subDays, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { 
+import {
   formatNumber,
   formatDate,
   type MaterialType,
@@ -28,12 +28,25 @@ import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, CartesianGrid } fro
 
 interface DailyProductionData {
   date: string
+  // Biodiesel
   biodiesel_stock_inicial: number
   biodiesel_stock_final: number
   biodiesel_despachos: number
   biodiesel_ingresos: number
   biodiesel_producido: number
-  aceite_consumido: number
+  // Aceite Neutro
+  aceite_neutro_stock_inicial: number
+  aceite_neutro_stock_final: number
+  aceite_neutro_despachos: number
+  aceite_neutro_ingresos: number
+  caudalimetro_consumo: number
+  aceite_neutro_producido: number
+  // Borra
+  borra_stock_inicial: number
+  borra_stock_final: number
+  borra_despachos: number
+  borra_producida: number
+  // Otros
   metanol_consumido: number
   glicerina_producida: number
   isComplete: boolean
@@ -43,39 +56,47 @@ export default function ProductionPage() {
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date())
   const [productionData, setProductionData] = useState<DailyProductionData[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  
+
   const supabase = createClient()
 
   const fetchProductionData = useCallback(async () => {
     setIsLoading(true)
-    
+
     const startDate = startOfMonth(selectedMonth)
     const endDate = endOfMonth(selectedMonth)
     const days = eachDayOfInterval({ start: startDate, end: endDate })
 
-    // Fetch all stock readings for the month
-    const { data: stockReadings } = await supabase
-      .from('stock_readings')
-      .select('*, tank:tanks(*)')
-      .gte('reading_date', format(startDate, 'yyyy-MM-dd'))
-      .lte('reading_date', format(endDate, 'yyyy-MM-dd'))
-
-    // Fetch all weighings for the month
-    const { data: weighings } = await supabase
-      .from('weighings')
-      .select('*, product:products(*)')
-      .gte('date', format(startDate, 'yyyy-MM-dd'))
-      .lte('date', format(endDate, 'yyyy-MM-dd'))
-
-    // Fetch all tanks
-    const { data: tanks } = await supabase
-      .from('tanks')
-      .select('*')
-      .eq('is_active', true)
+    // Fetch all stock readings for the month (+ previous day for first day)
+    const [
+      { data: stockReadings },
+      { data: weighings },
+      { data: tanks },
+      { data: flowmeterReadings },
+    ] = await Promise.all([
+      supabase
+        .from('stock_readings')
+        .select('*, tank:tanks(*)')
+        .gte('reading_date', format(subDays(startDate, 1), 'yyyy-MM-dd'))
+        .lte('reading_date', format(endDate, 'yyyy-MM-dd')),
+      supabase
+        .from('weighings')
+        .select('*, product:products(*)')
+        .gte('date', format(startDate, 'yyyy-MM-dd'))
+        .lte('date', format(endDate, 'yyyy-MM-dd')),
+      supabase
+        .from('tanks')
+        .select('*')
+        .eq('is_active', true),
+      supabase
+        .from('flowmeter_readings')
+        .select('*')
+        .gte('reading_date', format(subDays(startDate, 1), 'yyyy-MM-dd'))
+        .lte('reading_date', format(endDate, 'yyyy-MM-dd')),
+    ])
 
     // Process data for each day
     const dailyData: DailyProductionData[] = []
-    
+
     for (let i = 0; i < days.length; i++) {
       const currentDate = days[i]
       const previousDate = i > 0 ? days[i - 1] : subDays(currentDate, 1)
@@ -86,7 +107,7 @@ export default function ProductionPage() {
       const currentReadings = stockReadings?.filter(r => r.reading_date === dateStr) || []
       const previousReadings = stockReadings?.filter(r => r.reading_date === prevDateStr) || []
 
-      // Calculate totals by material
+      // Helper: sum material stocks in kg for a set of readings
       const calculateMaterialTotal = (readings: typeof currentReadings, material: MaterialType) => {
         return readings
           .filter(r => r.tank?.material_type === material)
@@ -97,76 +118,95 @@ export default function ProductionPage() {
           }, 0)
       }
 
-      // Biodiesel stocks (in kg)
+      // ── Biodiesel ──────────────────────────────────────────────
       const biodieselFinal = calculateMaterialTotal(currentReadings, 'biodiesel')
       const biodieselInicial = calculateMaterialTotal(previousReadings, 'biodiesel')
 
-      // Aceite stocks
+      // ── Aceite Neutro ──────────────────────────────────────────
       const aceiteNeutroFinal = calculateMaterialTotal(currentReadings, 'aceite_neutro')
       const aceiteNeutroInicial = calculateMaterialTotal(previousReadings, 'aceite_neutro')
-      const aceiteCrudoFinal = calculateMaterialTotal(currentReadings, 'aceite_crudo')
-      const aceiteCrudoInicial = calculateMaterialTotal(previousReadings, 'aceite_crudo')
 
-      // Metanol stocks
+      // ── Borra ──────────────────────────────────────────────────
+      const borraFinal = calculateMaterialTotal(currentReadings, 'borra')
+      const borraInicial = calculateMaterialTotal(previousReadings, 'borra')
+
+      // ── Metanol / Glicerina ────────────────────────────────────
       const metanolFinal = calculateMaterialTotal(currentReadings, 'metanol')
       const metanolInicial = calculateMaterialTotal(previousReadings, 'metanol')
-
-      // Glicerina stocks
       const glicerinaFinal = calculateMaterialTotal(currentReadings, 'glicerina')
       const glicerinaInicial = calculateMaterialTotal(previousReadings, 'glicerina')
 
-      // Get weighings for the day
+      // ── Weighings del día ──────────────────────────────────────
       const dayWeighings = weighings?.filter(w => w.date === dateStr) || []
-      
-      // Biodiesel dispatches (producto: Biodiesel B100)
-      const biodieselDespachos = dayWeighings
-        .filter(w => w.type === 'despacho' && w.product?.name?.toLowerCase().includes('biodiesel'))
-        .reduce((acc, w) => acc + (w.weight_net * 1000), 0) // Convert Tn to Kg
 
-      // Biodiesel receptions (if any)
-      const biodieselIngresos = dayWeighings
-        .filter(w => w.type === 'recepcion' && w.product?.name?.toLowerCase().includes('biodiesel'))
-        .reduce((acc, w) => acc + (w.weight_net * 1000), 0)
+      const filterWeighings = (type: 'recepcion' | 'despacho', nameHint: string) =>
+        dayWeighings
+          .filter(w => w.type === type && w.product?.name?.toLowerCase().includes(nameHint))
+          .reduce((acc, w) => acc + (w.weight_net * 1000), 0) // → kg
 
-      // Aceite receptions
-      const aceiteIngresos = dayWeighings
-        .filter(w => w.type === 'recepcion' && w.product?.name?.toLowerCase().includes('aceite'))
-        .reduce((acc, w) => acc + (w.weight_net * 1000), 0)
+      // Biodiesel
+      const biodieselDespachos = filterWeighings('despacho', 'biodiesel')
+      const biodieselIngresos  = filterWeighings('recepcion', 'biodiesel')
 
-      // Metanol receptions
-      const metanolIngresos = dayWeighings
-        .filter(w => w.type === 'recepcion' && w.product?.name?.toLowerCase().includes('metanol'))
-        .reduce((acc, w) => acc + (w.weight_net * 1000), 0)
+      // Aceite Neutro (despachos e ingresos)
+      const aceiteNeutroDespachos = filterWeighings('despacho', 'neutro')
+      const aceiteNeutroIngresos  = filterWeighings('recepcion', 'neutro')
 
-      // Glicerina dispatches
-      const glicerinaDespachos = dayWeighings
-        .filter(w => w.type === 'despacho' && w.product?.name?.toLowerCase().includes('glicerina'))
-        .reduce((acc, w) => acc + (w.weight_net * 1000), 0)
+      // Aceite genérico (para metanol/glicerina no se usa, pero sí para borra context)
+      const borraDespachos = filterWeighings('despacho', 'borra')
 
-      // Calculate production using formula:
-      // Producción = Stock Final - Stock Inicial + Despachos - Ingresos
+      // Metanol / Glicerina
+      const metanolIngresos      = filterWeighings('recepcion', 'metanol')
+      const glicerinaDespachos   = filterWeighings('despacho', 'glicerina')
+
+      // ── Caudalímetro (consumo diario = diferencia entre lecturas acumuladas) ──
+      const currentFlowmeter = flowmeterReadings?.find(f => f.reading_date === dateStr)
+      const prevFlowmeter    = flowmeterReadings?.find(f => f.reading_date === prevDateStr)
+      // accumulated_value está en Tn
+      const caudalimetroConsumo = (currentFlowmeter && prevFlowmeter)
+        ? Math.max(0, currentFlowmeter.accumulated_value - prevFlowmeter.accumulated_value)
+        : 0
+
+      // ── Producciones / Consumos ────────────────────────────────
+      // Biodiesel: Stock Final – Stock Inicial + Despachos – Ingresos
       const biodieselProducido = biodieselFinal - biodieselInicial + biodieselDespachos - biodieselIngresos
 
-      // Calculate consumption:
-      // Consumo = Stock Inicial - Stock Final + Ingresos - Despachos (en caso de despachar aceite)
-      const aceiteConsumido = (aceiteNeutroInicial + aceiteCrudoInicial) - (aceiteNeutroFinal + aceiteCrudoFinal) + aceiteIngresos
+      // Aceite Neutro Producido: Stock Final – Stock Inicial + Despachos – Ingresos + Consumo Caudalímetro
+      // (todos los stocks están en kg → convertir a Tn; caudalímetro ya está en Tn)
+      const aceiteNeutroProducido =
+        kgToTn(aceiteNeutroFinal - aceiteNeutroInicial + aceiteNeutroDespachos - aceiteNeutroIngresos)
+        + caudalimetroConsumo
+
+      // Borra Producida: Stock Final – Stock Inicial + Despachos
+      const borraProducida = kgToTn(borraFinal - borraInicial + borraDespachos)
+
+      // Metanol consumido: Stock Inicial – Stock Final + Ingresos
       const metanolConsumido = metanolInicial - metanolFinal + metanolIngresos
 
-      // Glicerina produced
+      // Glicerina producida: Stock Final – Stock Inicial + Despachos
       const glicerinaProducida = glicerinaFinal - glicerinaInicial + glicerinaDespachos
 
-      // Check if data is complete (has readings for both days)
+      // ── Completitud ───────────────────────────────────────────
       const isComplete = currentReadings.length > 0 && (i === 0 || previousReadings.length > 0)
 
       dailyData.push({
         date: dateStr,
         biodiesel_stock_inicial: kgToTn(biodieselInicial),
-        biodiesel_stock_final: kgToTn(biodieselFinal),
-        biodiesel_despachos: kgToTn(biodieselDespachos),
-        biodiesel_ingresos: kgToTn(biodieselIngresos),
-        biodiesel_producido: Math.max(0, kgToTn(biodieselProducido)),
-        aceite_consumido: Math.max(0, kgToTn(aceiteConsumido)),
-        metanol_consumido: Math.max(0, kgToTn(metanolConsumido)),
+        biodiesel_stock_final:   kgToTn(biodieselFinal),
+        biodiesel_despachos:     kgToTn(biodieselDespachos),
+        biodiesel_ingresos:      kgToTn(biodieselIngresos),
+        biodiesel_producido:     Math.max(0, kgToTn(biodieselProducido)),
+        aceite_neutro_stock_inicial: kgToTn(aceiteNeutroInicial),
+        aceite_neutro_stock_final:   kgToTn(aceiteNeutroFinal),
+        aceite_neutro_despachos:     kgToTn(aceiteNeutroDespachos),
+        aceite_neutro_ingresos:      kgToTn(aceiteNeutroIngresos),
+        caudalimetro_consumo:        caudalimetroConsumo,
+        aceite_neutro_producido:     aceiteNeutroProducido,
+        borra_stock_inicial: kgToTn(borraInicial),
+        borra_stock_final:   kgToTn(borraFinal),
+        borra_despachos:     kgToTn(borraDespachos),
+        borra_producida:     borraProducida,
+        metanol_consumido:   Math.max(0, kgToTn(metanolConsumido)),
         glicerina_producida: Math.max(0, kgToTn(glicerinaProducida)),
         isComplete,
       })
@@ -183,14 +223,35 @@ export default function ProductionPage() {
   const exportToCSV = () => {
     const rows = productionData.filter(d =>
       d.biodiesel_stock_inicial > 0 || d.biodiesel_stock_final > 0 ||
-      d.biodiesel_despachos > 0 || d.biodiesel_ingresos > 0
+      d.biodiesel_despachos > 0     || d.biodiesel_ingresos > 0
     )
     if (rows.length === 0) return
 
     const filename = `produccion_${format(selectedMonth, 'yyyyMM')}.csv`
-    let csv = 'Fecha,Stock Inicial (Tn),Stock Final (Tn),Despachos (Tn),Ingresos (Tn),Producción (Tn),Estado\n'
+    let csv = 'Fecha,Bio Stock Ini,Bio Stock Fin,Bio Despachos,Bio Ingresos,Biodiesel Prod,' +
+              'AN Stock Ini,AN Stock Fin,AN Despachos,AN Ingresos,Caudalímetro,AN Producido,' +
+              'Borra Stock Ini,Borra Stock Fin,Borra Despachos,Borra Producida,Estado\n'
+
     rows.forEach(d => {
-      csv += `${formatDate(d.date)},${formatNumber(d.biodiesel_stock_inicial)},${formatNumber(d.biodiesel_stock_final)},${formatNumber(d.biodiesel_despachos)},${formatNumber(d.biodiesel_ingresos)},${formatNumber(d.biodiesel_producido)},${d.isComplete ? 'Completo' : 'Incompleto'}\n`
+      csv += [
+        formatDate(d.date),
+        formatNumber(d.biodiesel_stock_inicial),
+        formatNumber(d.biodiesel_stock_final),
+        formatNumber(d.biodiesel_despachos),
+        formatNumber(d.biodiesel_ingresos),
+        formatNumber(d.biodiesel_producido),
+        formatNumber(d.aceite_neutro_stock_inicial),
+        formatNumber(d.aceite_neutro_stock_final),
+        formatNumber(d.aceite_neutro_despachos),
+        formatNumber(d.aceite_neutro_ingresos),
+        formatNumber(d.caudalimetro_consumo),
+        formatNumber(d.aceite_neutro_producido),
+        formatNumber(d.borra_stock_inicial),
+        formatNumber(d.borra_stock_final),
+        formatNumber(d.borra_despachos),
+        formatNumber(d.borra_producida),
+        d.isComplete ? 'Completo' : 'Incompleto',
+      ].join(',') + '\n'
     })
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -200,37 +261,40 @@ export default function ProductionPage() {
     link.click()
   }
 
-  // Calculate monthly totals
+  // Monthly totals
   const monthlyTotals = productionData.reduce((acc, day) => {
     if (day.isComplete) {
-      acc.biodiesel += day.biodiesel_producido
-      acc.aceite += day.aceite_consumido
-      acc.metanol += day.metanol_consumido
-      acc.glicerina += day.glicerina_producida
+      acc.biodiesel           += day.biodiesel_producido
+      acc.aceiteNeutro        += day.aceite_neutro_producido
+      acc.borra               += day.borra_producida
+      acc.metanol             += day.metanol_consumido
+      acc.glicerina           += day.glicerina_producida
       acc.completeDays++
     }
     return acc
-  }, { biodiesel: 0, aceite: 0, metanol: 0, glicerina: 0, completeDays: 0 })
+  }, { biodiesel: 0, aceiteNeutro: 0, borra: 0, metanol: 0, glicerina: 0, completeDays: 0 })
 
-  // Prepare chart data
+  // Chart data
   const chartData = productionData
     .filter(d => d.isComplete)
     .map(d => ({
-      date: formatDate(d.date).slice(0, 5),
+      date:      formatDate(d.date).slice(0, 5),
       biodiesel: d.biodiesel_producido,
       glicerina: d.glicerina_producida,
     }))
 
   const chartConfig = {
-    biodiesel: {
-      label: "Biodiesel",
-      color: "var(--chart-1)",
-    },
-    glicerina: {
-      label: "Glicerina",
-      color: "var(--chart-2)",
-    },
+    biodiesel: { label: 'Biodiesel',  color: 'var(--chart-1)' },
+    glicerina: { label: 'Glicerina',  color: 'var(--chart-2)' },
   }
+
+  // Filter rows that have any data
+  const tableRows = productionData.filter(day =>
+    day.biodiesel_stock_inicial > 0 ||
+    day.biodiesel_stock_final > 0   ||
+    day.biodiesel_despachos > 0     ||
+    day.biodiesel_ingresos > 0
+  )
 
   return (
     <div className="p-4 lg:p-8">
@@ -242,7 +306,7 @@ export default function ProductionPage() {
             Cálculo de producción diaria de biodiesel
           </p>
         </div>
-        
+
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-[200px] justify-start text-left font-normal">
@@ -268,8 +332,8 @@ export default function ProductionPage() {
         </div>
       ) : (
         <>
-          {/* Monthly Summary Cards */}
-          <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {/* Summary Cards */}
+          <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -285,12 +349,23 @@ export default function ProductionPage() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Aceite Consumido
+                  Aceite Neutro Producido
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(monthlyTotals.aceite)} Tn</div>
-                <p className="text-xs text-muted-foreground">Aceite crudo + neutro</p>
+                <div className="text-2xl font-bold">{formatNumber(monthlyTotals.aceiteNeutro)} Tn</div>
+                <p className="text-xs text-muted-foreground">Incluye consumo caudalímetro</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Borra Producida
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(monthlyTotals.borra)} Tn</div>
               </CardContent>
             </Card>
 
@@ -337,19 +412,19 @@ export default function ProductionPage() {
                       <XAxis dataKey="date" tickLine={false} axisLine={false} />
                       <YAxis tickLine={false} axisLine={false} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Area 
-                        type="monotone" 
-                        dataKey="biodiesel" 
+                      <Area
+                        type="monotone"
+                        dataKey="biodiesel"
                         stackId="1"
-                        stroke="var(--chart-1)" 
-                        fill="var(--chart-1)" 
+                        stroke="var(--chart-1)"
+                        fill="var(--chart-1)"
                         fillOpacity={0.6}
                       />
-                      <Area 
-                        type="monotone" 
-                        dataKey="glicerina" 
+                      <Area
+                        type="monotone"
+                        dataKey="glicerina"
                         stackId="2"
-                        stroke="var(--chart-2)" 
+                        stroke="var(--chart-2)"
                         fill="var(--chart-2)"
                         fillOpacity={0.6}
                       />
@@ -360,16 +435,16 @@ export default function ProductionPage() {
             </CardContent>
           </Card>
 
-          {/* Daily Table */}
-          <Card>
+          {/* Biodiesel table */}
+          <Card className="mb-6">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Detalle Diario</CardTitle>
+                <CardTitle>Detalle Diario — Biodiesel</CardTitle>
                 <CardDescription>
-                  Fórmula: Producción = Stock Final - Stock Inicial + Despachos - Ingresos
+                  Producción = Stock Final − Stock Inicial + Despachos − Ingresos
                 </CardDescription>
               </div>
-              <Button variant="outline" size="sm" onClick={exportToCSV} disabled={productionData.length === 0}>
+              <Button variant="outline" size="sm" onClick={exportToCSV} disabled={tableRows.length === 0}>
                 <Download className="mr-2 h-4 w-4" />
                 Exportar CSV
               </Button>
@@ -380,44 +455,128 @@ export default function ProductionPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Fecha</TableHead>
-                      <TableHead className="text-right">Stock Inicial</TableHead>
-                      <TableHead className="text-right">Stock Final</TableHead>
-                      <TableHead className="text-right">Despachos</TableHead>
-                      <TableHead className="text-right">Ingresos</TableHead>
+                      <TableHead className="text-right">Stock Ini (Tn)</TableHead>
+                      <TableHead className="text-right">Stock Fin (Tn)</TableHead>
+                      <TableHead className="text-right">Despachos (Tn)</TableHead>
+                      <TableHead className="text-right">Ingresos (Tn)</TableHead>
                       <TableHead className="text-right">Producción (Tn)</TableHead>
                       <TableHead>Estado</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {productionData.filter(day =>
-                      day.biodiesel_stock_inicial > 0 ||
-                      day.biodiesel_stock_final > 0 ||
-                      day.biodiesel_despachos > 0 ||
-                      day.biodiesel_ingresos > 0
-                    ).map((day) => (
+                    {tableRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                          No hay datos para este mes
+                        </TableCell>
+                      </TableRow>
+                    ) : tableRows.map((day) => (
                       <TableRow key={day.date} className={!day.isComplete ? 'opacity-50' : ''}>
                         <TableCell>{formatDate(day.date)}</TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatNumber(day.biodiesel_stock_inicial)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatNumber(day.biodiesel_stock_final)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatNumber(day.biodiesel_despachos)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatNumber(day.biodiesel_ingresos)}
-                        </TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.biodiesel_stock_inicial)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.biodiesel_stock_final)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.biodiesel_despachos)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.biodiesel_ingresos)}</TableCell>
                         <TableCell className="text-right font-mono font-semibold text-primary">
                           {formatNumber(day.biodiesel_producido)}
                         </TableCell>
                         <TableCell>
-                          {day.isComplete ? (
-                            <Badge variant="default">Completo</Badge>
-                          ) : (
-                            <Badge variant="secondary">Incompleto</Badge>
-                          )}
+                          {day.isComplete
+                            ? <Badge variant="default">Completo</Badge>
+                            : <Badge variant="secondary">Incompleto</Badge>
+                          }
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Aceite Neutro table */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Detalle Diario — Aceite Neutro</CardTitle>
+              <CardDescription>
+                Producido = Stock Final − Stock Inicial + Despachos − Ingresos + Consumo Caudalímetro
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead className="text-right">Stock Ini (Tn)</TableHead>
+                      <TableHead className="text-right">Stock Fin (Tn)</TableHead>
+                      <TableHead className="text-right">Despachos (Tn)</TableHead>
+                      <TableHead className="text-right">Ingresos (Tn)</TableHead>
+                      <TableHead className="text-right">Caudalímetro (Tn)</TableHead>
+                      <TableHead className="text-right">AN Producido (Tn)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tableRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                          No hay datos para este mes
+                        </TableCell>
+                      </TableRow>
+                    ) : tableRows.map((day) => (
+                      <TableRow key={day.date} className={!day.isComplete ? 'opacity-50' : ''}>
+                        <TableCell>{formatDate(day.date)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.aceite_neutro_stock_inicial)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.aceite_neutro_stock_final)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.aceite_neutro_despachos)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.aceite_neutro_ingresos)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.caudalimetro_consumo)}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold">
+                          {formatNumber(day.aceite_neutro_producido)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Borra table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Detalle Diario — Borra</CardTitle>
+              <CardDescription>
+                Producida = Stock Final − Stock Inicial + Despachos
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead className="text-right">Stock Ini (Tn)</TableHead>
+                      <TableHead className="text-right">Stock Fin (Tn)</TableHead>
+                      <TableHead className="text-right">Despachos (Tn)</TableHead>
+                      <TableHead className="text-right">Borra Producida (Tn)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tableRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                          No hay datos para este mes
+                        </TableCell>
+                      </TableRow>
+                    ) : tableRows.map((day) => (
+                      <TableRow key={day.date} className={!day.isComplete ? 'opacity-50' : ''}>
+                        <TableCell>{formatDate(day.date)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.borra_stock_inicial)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.borra_stock_final)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.borra_despachos)}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold">
+                          {formatNumber(day.borra_producida)}
                         </TableCell>
                       </TableRow>
                     ))}
