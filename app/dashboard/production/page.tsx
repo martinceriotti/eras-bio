@@ -41,11 +41,11 @@ interface DailyProductionData {
   aceite_neutro_ingresos: number
   caudalimetro_consumo: number
   aceite_neutro_producido: number
-  // Borra
-  borra_stock_inicial: number
-  borra_stock_final: number
-  borra_despachos: number
-  borra_producida: number
+  // Gomas
+  gomas_stock_inicial: number
+  gomas_stock_final: number
+  gomas_despachos: number
+  gomas_producida: number
   // Otros
   metanol_consumido: number
   glicerina_producida: number
@@ -136,9 +136,9 @@ export default function ProductionPage() {
       const aceiteNeutroFinal = calculateMaterialTotal(currentReadings, 'aceite_neutro')
       const aceiteNeutroInicial = calculateMaterialTotal(previousReadings, 'aceite_neutro')
 
-      // ── Borra (= Gomas) ───────────────────────────────────────
-      const borraFinal = calculateMaterialTotal(currentReadings, 'gomas')
-      const borraInicial = calculateMaterialTotal(previousReadings, 'gomas')
+      // ── Gomas ─────────────────────────────────────────────────
+      const gomasFinal = calculateMaterialTotal(currentReadings, 'gomas')
+      const gomasInicial = calculateMaterialTotal(previousReadings, 'gomas')
 
       // ── Metanol / Glicerina ────────────────────────────────────
       const metanolFinal = calculateMaterialTotal(currentReadings, 'metanol')
@@ -162,9 +162,8 @@ export default function ProductionPage() {
       const aceiteNeutroDespachos = filterWeighings('despacho', 'neutro')
       const aceiteNeutroIngresos  = filterWeighings('recepcion', 'neutro')
 
-      // Aceite genérico (para metanol/glicerina no se usa, pero sí para borra context)
-      // Borra: buscar por 'goma' O 'borra' en el nombre del producto
-      const borraDespachos = dayWeighings
+      // Gomas: buscar por 'goma' O 'borra' en el nombre del producto
+      const gomasDespachos = dayWeighings
         .filter(w => w.type === 'despacho' && (
           w.product?.name?.toLowerCase().includes('goma') ||
           w.product?.name?.toLowerCase().includes('borra')
@@ -193,8 +192,8 @@ export default function ProductionPage() {
         kgToTn(aceiteNeutroFinal - aceiteNeutroInicial + aceiteNeutroDespachos - aceiteNeutroIngresos)
         + caudalimetroConsumo
 
-      // Borra Producida: Stock Final – Stock Inicial + Despachos
-      const borraProducida = kgToTn(borraFinal - borraInicial + borraDespachos)
+      // Gomas Producidas: Stock Final – Stock Inicial + Despachos
+      const gomasProducida = kgToTn(gomasFinal - gomasInicial + gomasDespachos)
 
       // Metanol consumido: Stock Inicial – Stock Final + Ingresos
       const metanolConsumido = metanolInicial - metanolFinal + metanolIngresos
@@ -218,10 +217,10 @@ export default function ProductionPage() {
         aceite_neutro_ingresos:      kgToTn(aceiteNeutroIngresos),
         caudalimetro_consumo:        caudalimetroConsumo,
         aceite_neutro_producido:     aceiteNeutroProducido,
-        borra_stock_inicial: kgToTn(borraInicial),
-        borra_stock_final:   kgToTn(borraFinal),
-        borra_despachos:     kgToTn(borraDespachos),
-        borra_producida:     borraProducida,
+        gomas_stock_inicial: kgToTn(gomasInicial),
+        gomas_stock_final:   kgToTn(gomasFinal),
+        gomas_despachos:     kgToTn(gomasDespachos),
+        gomas_producida:     gomasProducida,
         metanol_consumido:   Math.max(0, kgToTn(metanolConsumido)),
         glicerina_producida: Math.max(0, kgToTn(glicerinaProducida)),
         isComplete,
@@ -246,7 +245,7 @@ export default function ProductionPage() {
     const filename = `produccion_${format(selectedMonth, 'yyyyMM')}.csv`
     let csv = 'Fecha,Bio Stock Ini,Bio Stock Fin,Bio Despachos,Bio Ingresos,Biodiesel Prod,' +
               'AN Stock Ini,AN Stock Fin,AN Despachos,AN Ingresos,Caudalímetro,AN Producido,' +
-              'Borra Stock Ini,Borra Stock Fin,Borra Despachos,Borra Producida,Estado\n'
+              'Gomas Stock Ini,Gomas Stock Fin,Gomas Despachos,Gomas Producidas,Estado\n'
 
     rows.forEach(d => {
       csv += [
@@ -262,10 +261,10 @@ export default function ProductionPage() {
         formatNumber(d.aceite_neutro_ingresos),
         formatNumber(d.caudalimetro_consumo),
         formatNumber(d.aceite_neutro_producido),
-        formatNumber(d.borra_stock_inicial),
-        formatNumber(d.borra_stock_final),
-        formatNumber(d.borra_despachos),
-        formatNumber(d.borra_producida),
+        formatNumber(d.gomas_stock_inicial),
+        formatNumber(d.gomas_stock_final),
+        formatNumber(d.gomas_despachos),
+        formatNumber(d.gomas_producida),
         d.isComplete ? 'Completo' : 'Incompleto',
       ].join(',') + '\n'
     })
@@ -282,13 +281,13 @@ export default function ProductionPage() {
     if (day.isComplete) {
       acc.biodiesel           += day.biodiesel_producido
       acc.aceiteNeutro        += day.aceite_neutro_producido
-      acc.borra               += day.borra_producida
+      acc.gomas               += day.gomas_producida
       acc.metanol             += day.metanol_consumido
       acc.glicerina           += day.glicerina_producida
       acc.completeDays++
     }
     return acc
-  }, { biodiesel: 0, aceiteNeutro: 0, borra: 0, metanol: 0, glicerina: 0, completeDays: 0 })
+  }, { biodiesel: 0, aceiteNeutro: 0, gomas: 0, metanol: 0, glicerina: 0, completeDays: 0 })
 
   // Chart data
   const chartData = productionData
@@ -320,10 +319,10 @@ export default function ProductionPage() {
     day.caudalimetro_consumo > 0
   )
 
-  const borraRows = productionData.filter(day =>
-    day.borra_stock_inicial > 0 ||
-    day.borra_stock_final > 0   ||
-    day.borra_despachos > 0
+  const gomasRows = productionData.filter(day =>
+    day.gomas_stock_inicial > 0 ||
+    day.gomas_stock_final > 0   ||
+    day.gomas_despachos > 0
   )
 
   return (
@@ -391,11 +390,11 @@ export default function ProductionPage() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Borra Producida
+                  Gomas Producidas
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(monthlyTotals.borra)} Tn</div>
+                <div className="text-2xl font-bold">{formatNumber(monthlyTotals.gomas)} Tn</div>
               </CardContent>
             </Card>
 
@@ -572,12 +571,12 @@ export default function ProductionPage() {
             </CardContent>
           </Card>
 
-          {/* Borra table */}
+          {/* Gomas table */}
           <Card>
             <CardHeader>
-              <CardTitle>Detalle Diario — Borra</CardTitle>
+              <CardTitle>Detalle Diario — Gomas</CardTitle>
               <CardDescription>
-                Producida = Stock Final − Stock Inicial + Despachos
+                Producidas = Stock Final − Stock Inicial + Despachos
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
@@ -589,24 +588,24 @@ export default function ProductionPage() {
                       <TableHead className="text-right">Stock Ini (Tn)</TableHead>
                       <TableHead className="text-right">Stock Fin (Tn)</TableHead>
                       <TableHead className="text-right">Despachos (Tn)</TableHead>
-                      <TableHead className="text-right">Borra Producida (Tn)</TableHead>
+                      <TableHead className="text-right">Gomas Producidas (Tn)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {borraRows.length === 0 ? (
+                    {gomasRows.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
                           No hay datos para este mes
                         </TableCell>
                       </TableRow>
-                    ) : borraRows.map((day) => (
+                    ) : gomasRows.map((day) => (
                       <TableRow key={day.date} className={!day.isComplete ? 'opacity-50' : ''}>
                         <TableCell>{formatDate(day.date)}</TableCell>
-                        <TableCell className="text-right font-mono">{formatNumber(day.borra_stock_inicial)}</TableCell>
-                        <TableCell className="text-right font-mono">{formatNumber(day.borra_stock_final)}</TableCell>
-                        <TableCell className="text-right font-mono">{formatNumber(day.borra_despachos)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.gomas_stock_inicial)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.gomas_stock_final)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.gomas_despachos)}</TableCell>
                         <TableCell className="text-right font-mono font-semibold">
-                          {formatNumber(day.borra_producida)}
+                          {formatNumber(day.gomas_producida)}
                         </TableCell>
                       </TableRow>
                     ))}
