@@ -12,7 +12,8 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { Plus, Pencil, Loader2, Building2, Search, PowerOff } from 'lucide-react'
+import { Plus, Pencil, Loader2, Building2, Search, PowerOff, AlertCircle } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import type { Company } from '@/lib/types'
 
 const emptyForm = {
@@ -40,6 +41,7 @@ export default function CompaniesPage() {
   const [editingId, setEditingId]       = useState<string | null>(null)
   const [confirmToggleId, setConfirmToggleId] = useState<string | null>(null)
   const [form, setForm]                 = useState<FormData>(emptyForm)
+  const [saveError, setSaveError]       = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -93,6 +95,7 @@ export default function CompaniesPage() {
   const handleSave = async () => {
     if (!form.name.trim()) return
     setSaving(true)
+    setSaveError(null)
 
     const payload = {
       name:        form.name.trim(),
@@ -111,17 +114,23 @@ export default function CompaniesPage() {
         .update({ ...payload, updated_at: new Date().toISOString() })
         .eq('id', editingId)
         .select().single()
-      if (!error && data) {
-        setCompanies(prev => prev.map(c => c.id === editingId ? data : c))
+      if (error) {
+        setSaveError(error.message)
+        setSaving(false)
+        return
       }
+      if (data) setCompanies(prev => prev.map(c => c.id === editingId ? data : c))
     } else {
       const { data, error } = await supabase
         .from('companies')
-        .insert({ ...payload, user_id: userId })
+        .insert({ ...payload, user_id: userId || null })
         .select().single()
-      if (!error && data) {
-        setCompanies(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+      if (error) {
+        setSaveError(error.message)
+        setSaving(false)
+        return
       }
+      if (data) setCompanies(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
     }
 
     setSaving(false)
@@ -253,7 +262,7 @@ export default function CompaniesPage() {
       </Card>
 
       {/* Dialog alta/edición */}
-      <Dialog open={dialogOpen} onOpenChange={open => { if (!open) setDialogOpen(false) }}>
+      <Dialog open={dialogOpen} onOpenChange={open => { if (!open) { setDialogOpen(false); setSaveError(null) } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Editar Empresa' : 'Nueva Empresa'}</DialogTitle>
@@ -261,6 +270,13 @@ export default function CompaniesPage() {
               Una empresa puede ser proveedor, cliente o ambas.
             </DialogDescription>
           </DialogHeader>
+
+          {saveError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs font-mono">{saveError}</AlertDescription>
+            </Alert>
+          )}
 
           <div className="grid gap-4 py-2">
             <div className="space-y-2">

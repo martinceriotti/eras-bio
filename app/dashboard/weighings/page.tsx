@@ -100,7 +100,18 @@ export default function WeighingsPage() {
   }, [selectedDate, supabase])
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData(prev => {
+      const next = { ...prev, [field]: value }
+      // Al cambiar el tipo, limpiar empresa si ya no corresponde
+      if (field === 'type' && prev.company_id) {
+        const co = companies.find(c => c.id === prev.company_id)
+        if (co) {
+          const valid = value === 'recepcion' ? co.is_supplier : co.is_client
+          if (!valid) next.company_id = ''
+        }
+      }
+      return next
+    })
   }
 
   const calculateNetWeight = () => {
@@ -366,13 +377,16 @@ export default function WeighingsPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__blank__">— Sin empresa —</SelectItem>
-                          {companies.map(c => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name}
-                              {c.is_supplier && !c.is_client && ' · Prov.'}
-                              {c.is_client && !c.is_supplier && ' · Cliente'}
-                            </SelectItem>
-                          ))}
+                          {companies
+                            .filter(c =>
+                              formData.type === 'recepcion' ? c.is_supplier : c.is_client
+                            )
+                            .map(c => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.name}
+                                {c.is_supplier && c.is_client && ' · Prov./Cliente'}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </div>
