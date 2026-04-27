@@ -113,7 +113,17 @@ export default function ProductionPage() {
           .filter(r => r.tank?.material_type === material)
           .reduce((acc, r) => {
             const tank = r.tank
-            const valueKg = r.value_kg || (tank ? litersToKg(r.value, tank.density) : r.value)
+            let valueKg: number
+            if (r.value_kg != null && r.value_kg > 0) {
+              // value_kg guardado correctamente
+              valueKg = r.value_kg
+            } else if (tank && tank.density) {
+              // calcular desde value + density
+              valueKg = litersToKg(r.value, tank.density)
+            } else {
+              // density no configurada: asumir que value ya está en kg
+              valueKg = r.value ?? 0
+            }
             return acc + valueKg
           }, 0)
       }
@@ -153,7 +163,13 @@ export default function ProductionPage() {
       const aceiteNeutroIngresos  = filterWeighings('recepcion', 'neutro')
 
       // Aceite genérico (para metanol/glicerina no se usa, pero sí para borra context)
-      const borraDespachos = filterWeighings('despacho', 'goma')
+      // Borra: buscar por 'goma' O 'borra' en el nombre del producto
+      const borraDespachos = dayWeighings
+        .filter(w => w.type === 'despacho' && (
+          w.product?.name?.toLowerCase().includes('goma') ||
+          w.product?.name?.toLowerCase().includes('borra')
+        ))
+        .reduce((acc, w) => acc + (w.weight_net * 1000), 0)
 
       // Metanol / Glicerina
       const metanolIngresos      = filterWeighings('recepcion', 'metanol')
