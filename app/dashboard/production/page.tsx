@@ -243,45 +243,47 @@ export default function ProductionPage() {
     fetchProductionData()
   }, [fetchProductionData])
 
-  const exportToCSV = () => {
-    const rows = productionData.filter(d =>
-      d.biodiesel_stock_inicial > 0 || d.biodiesel_stock_final > 0 ||
-      d.biodiesel_despachos > 0     || d.biodiesel_ingresos > 0
-    )
-    if (rows.length === 0) return
+  const SEP = ';'
+  const n = (v: number) => v.toFixed(2)
 
-    const filename = `produccion_${format(selectedMonth, 'yyyyMM')}.csv`
-    let csv = 'Fecha,Bio Stock Ini,Bio Stock Fin,Bio Despachos,Bio Ingresos,Biodiesel Prod,' +
-              'AN Stock Ini,AN Stock Fin,AN Despachos,AN Ingresos,Caudalímetro,AN Producido,' +
-              'Gomas Stock Ini,Gomas Stock Fin,Gomas Despachos,Gomas Producidas,Estado\n'
-
-    rows.forEach(d => {
-      csv += [
-        formatDate(d.date),
-        formatNumber(d.biodiesel_stock_inicial),
-        formatNumber(d.biodiesel_stock_final),
-        formatNumber(d.biodiesel_despachos),
-        formatNumber(d.biodiesel_ingresos),
-        formatNumber(d.biodiesel_producido),
-        formatNumber(d.aceite_neutro_stock_inicial),
-        formatNumber(d.aceite_neutro_stock_final),
-        formatNumber(d.aceite_neutro_despachos),
-        formatNumber(d.aceite_neutro_ingresos),
-        formatNumber(d.caudalimetro_consumo),
-        formatNumber(d.aceite_neutro_producido),
-        formatNumber(d.gomas_stock_inicial),
-        formatNumber(d.gomas_stock_final),
-        formatNumber(d.gomas_despachos),
-        formatNumber(d.gomas_producida),
-        d.isComplete ? 'Completo' : 'Incompleto',
-      ].join(',') + '\n'
-    })
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const downloadCSV = (csv: string, filename: string) => {
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = filename
     link.click()
+  }
+
+  const exportBiodieselCSV = () => {
+    if (biodieselRows.length === 0) return
+    const header = ['Fecha','Stock Ini (Tn)','Stock Fin (Tn)','Despachos (Tn)','Ingresos (Tn)','Biodiesel Prod (Tn)','Estado'].join(SEP)
+    const rows = biodieselRows.map(d => [
+      formatDate(d.date), n(d.biodiesel_stock_inicial), n(d.biodiesel_stock_final),
+      n(d.biodiesel_despachos), n(d.biodiesel_ingresos), n(d.biodiesel_producido),
+      d.isComplete ? 'Completo' : 'Incompleto',
+    ].join(SEP))
+    downloadCSV(header + '\n' + rows.join('\n'), `biodiesel_${format(selectedMonth, 'yyyyMM')}.csv`)
+  }
+
+  const exportAceiteNeutroCSV = () => {
+    if (aceiteNeutroRows.length === 0) return
+    const header = ['Fecha','Stock Ini (Tn)','Stock Fin (Tn)','Despachos (Tn)','Ingresos (Tn)','Caudalimetro (Tn)','AN Producido (Tn)'].join(SEP)
+    const rows = aceiteNeutroRows.map(d => [
+      formatDate(d.date), n(d.aceite_neutro_stock_inicial), n(d.aceite_neutro_stock_final),
+      n(d.aceite_neutro_despachos), n(d.aceite_neutro_ingresos),
+      n(d.caudalimetro_consumo), n(d.aceite_neutro_producido),
+    ].join(SEP))
+    downloadCSV(header + '\n' + rows.join('\n'), `aceite_neutro_${format(selectedMonth, 'yyyyMM')}.csv`)
+  }
+
+  const exportGomasCSV = () => {
+    if (gomasRows.length === 0) return
+    const header = ['Fecha','Stock Ini (Tn)','Stock Fin (Tn)','Despachos (Tn)','Gomas Producidas (Tn)'].join(SEP)
+    const rows = gomasRows.map(d => [
+      formatDate(d.date), n(d.gomas_stock_inicial), n(d.gomas_stock_final),
+      n(d.gomas_despachos), n(d.gomas_producida),
+    ].join(SEP))
+    downloadCSV(header + '\n' + rows.join('\n'), `gomas_${format(selectedMonth, 'yyyyMM')}.csv`)
   }
 
   // Monthly totals
@@ -481,7 +483,7 @@ export default function ProductionPage() {
                   Producción = Stock Final − Stock Inicial + Despachos − Ingresos
                 </CardDescription>
               </div>
-              <Button variant="outline" size="sm" onClick={exportToCSV} disabled={biodieselRows.length === 0}>
+              <Button variant="outline" size="sm" onClick={exportBiodieselCSV} disabled={biodieselRows.length === 0}>
                 <Download className="mr-2 h-4 w-4" />
                 Exportar CSV
               </Button>
@@ -533,11 +535,17 @@ export default function ProductionPage() {
 
           {/* Aceite Neutro table */}
           <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Detalle Diario — Aceite Neutro</CardTitle>
-              <CardDescription>
-                Producido = Stock Final − Stock Inicial + Despachos − Ingresos + Consumo Caudalímetro
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Detalle Diario — Aceite Neutro</CardTitle>
+                <CardDescription>
+                  Producido = Stock Final − Stock Inicial + Despachos − Ingresos + Consumo Caudalímetro
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={exportAceiteNeutroCSV} disabled={aceiteNeutroRows.length === 0}>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar CSV
+              </Button>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -581,11 +589,17 @@ export default function ProductionPage() {
 
           {/* Gomas table */}
           <Card>
-            <CardHeader>
-              <CardTitle>Detalle Diario — Gomas</CardTitle>
-              <CardDescription>
-                Producidas = Stock Final − Stock Inicial + Despachos
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Detalle Diario — Gomas</CardTitle>
+                <CardDescription>
+                  Producidas = Stock Final − Stock Inicial + Despachos
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={exportGomasCSV} disabled={gomasRows.length === 0}>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar CSV
+              </Button>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -627,3 +641,4 @@ export default function ProductionPage() {
     </div>
   )
 }
+                      
