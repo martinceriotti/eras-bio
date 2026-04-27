@@ -600,4 +600,19 @@ export default function ConsumptionPage() {
                           <TableCell className="text-right font-mono">
                             {formatNumber(kgToTn(d.biodiesel_kg))}
                           </TableCell>
-                          <TableCell className=
+                          <TableCell className="text-right font-mono">{formatNumber(d.glp_kg, 0)}</TableCell>
+                          <TableCell className="text-right font-mono">{ceCell(d.ce_glp)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+        </Tabs>
+      )}
+    </div>
+  )
+}

@@ -613,4 +613,21 @@ export default function ProductionPage() {
                       <TableRow key={day.date} className={!day.isComplete ? 'opacity-50' : ''}>
                         <TableCell>{formatDate(day.date)}</TableCell>
                         <TableCell className="text-right font-mono">{formatNumber(day.gomas_stock_inicial)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.gomas_stock_final)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(day.gomas_despachos)}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold">
+                          {formatNumber(day.gomas_producida)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  )
+}
                       
