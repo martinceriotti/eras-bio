@@ -190,7 +190,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
 
   const exportToCSV = () => {
     const SEP = ';'
-    const n   = (v: number) => v.toFixed(3)
+    const n   = (v: number) => v.toFixed(3).replace('.', ',')
     let csvContent = ''
     let filename = ''
 
@@ -204,21 +204,21 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
       filename = `pesajes_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
       csvContent = ['Fecha','Tipo','Producto','Empresa','Remito','Peso Bruto (kg)','Peso Tara (kg)','Peso Neto (Tn)'].join(SEP) + '\n'
       weighingsData.forEach(w => {
-        csvContent += [formatDate(w.date), w.type === 'recepcion' ? 'Recepcion' : 'Despacho', w.product?.name || '', w.company || '', w.remito_number || '', w.weight_gross ?? '', w.weight_tare ?? '', (w.weight_net / 1000).toFixed(3)].join(SEP) + '\n'
+        csvContent += [formatDate(w.date), w.type === 'recepcion' ? 'Recepcion' : 'Despacho', w.product?.name || '', w.company || '', w.remito_number || '', w.weight_gross ?? '', w.weight_tare ?? '', (w.weight_net / 1000).toFixed(3).replace('.', ',')].join(SEP) + '\n'
       })
     } else if (reportType === 'stocks' && stocksData.length > 0) {
       filename = `stocks_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
       csvContent = ['Fecha','Tanque','Codigo','Valor','Unidad','Kg'].join(SEP) + '\n'
       stocksData.forEach(s => {
         const valueKg = s.tank ? calculateValueKg(s.tank, s.value) : (s.value_kg || 0)
-        csvContent += [formatDate(s.reading_date), s.tank?.name || '', s.tank?.code || '', s.value.toFixed(2), s.tank?.unit || '', valueKg.toFixed(2)].join(SEP) + '\n'
+        csvContent += [formatDate(s.reading_date), s.tank?.name || '', s.tank?.code || '', s.value.toFixed(2).replace('.', ','), s.tank?.unit || '', valueKg.toFixed(2).replace('.', ',')].join(SEP) + '\n'
       })
     } else if (reportType === 'company' && companyWeighingsData.length > 0) {
       const companyName = companies.find(c => c.id === selectedCompanyId)?.name || 'empresa'
       filename = `empresa_${companyName.replace(/\s+/g, '_')}_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
       csvContent = ['Fecha','Tipo','Producto','Remito','Chofer','Patente','Peso Bruto (kg)','Peso Tara (kg)','Peso Neto (Tn)'].join(SEP) + '\n'
       companyWeighingsData.forEach(w => {
-        csvContent += [formatDate(w.date), w.type === 'recepcion' ? 'Recepcion' : 'Despacho', w.product?.name || '', w.remito_number || '', w.driver || '', w.license_plate || '', w.weight_gross ?? '', w.weight_tare ?? '', (w.weight_net / 1000).toFixed(3)].join(SEP) + '\n'
+        csvContent += [formatDate(w.date), w.type === 'recepcion' ? 'Recepcion' : 'Despacho', w.product?.name || '', w.remito_number || '', w.driver || '', w.license_plate || '', w.weight_gross ?? '', w.weight_tare ?? '', (w.weight_net / 1000).toFixed(3).replace('.', ',')].join(SEP) + '\n'
       })
     }
 

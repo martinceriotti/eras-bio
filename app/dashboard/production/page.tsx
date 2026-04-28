@@ -244,7 +244,7 @@ export default function ProductionPage() {
   }, [fetchProductionData])
 
   const SEP = ';'
-  const n = (v: number) => v.toFixed(2)
+  const n = (v: number) => v.toFixed(2).replace('.', ',')
 
   const downloadCSV = (csv: string, filename: string) => {
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })

@@ -248,7 +248,7 @@ export default function ConsumptionPage() {
 
   // ── Export CSV ────────────────────────────────────────────────────────────
   const SEP = ';'
-  const nf  = (v: number | null) => v != null ? v.toFixed(2) : ''
+  const nf  = (v: number | null) => v != null ? v.toFixed(2).replace('.', ',') : ''
 
   const downloadCSV = (csv: string, filename: string) => {
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
