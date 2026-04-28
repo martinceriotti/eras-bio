@@ -300,8 +300,9 @@ export default function ConsumptionPage() {
 
   const accSoda  = refinadoDays.reduce((s, d) => s + d.soda_kg,            0)
   const accAF    = refinadoDays.reduce((s, d) => s + d.acido_fosforico_kg, 0)
-  const accMerma = refinadoDays.length > 0
-    ? refinadoDays.reduce((s, d) => s + (d.merma ?? 0), 0) / refinadoDays.length
+  const accAC    = refinadoDays.reduce((s, d) => s + d.aceite_crudo_consumido_kg, 0)
+  const accMerma = accAN > 0 && accAC > 0
+    ? (1 - accAN / accAC) * 100
     : null
 
   const accMetanol   = biodieselDays.reduce((s, d) => s + d.metanol_kg,           0)
@@ -379,9 +380,9 @@ export default function ConsumptionPage() {
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Merma Proceso (promedio)
+                    Merma Proceso
                   </CardTitle>
-                  <CardDescription>Acumulado mensual</CardDescription>
+                  <CardDescription>(1 − AN total / AC total) × 100</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
