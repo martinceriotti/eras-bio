@@ -155,8 +155,10 @@ export default function ConsumptionPage() {
       const isComplete = prev.length > 0 && cur.length > 0
 
       // ── Caudalímetro ─────────────────────────────────────────────────────
+      // Se usa SOLO si existe lectura del día anterior exacto (evita acumular
+      // semanas de delta cuando no hay lectura consecutiva).
       const curFlow  = flowmeterReadings?.find(f => f.reading_date === dateStr)
-      const prevFlow = flowmeterReadings?.filter(f => f.reading_date < dateStr).at(-1)
+      const prevFlow = flowmeterReadings?.find(f => f.reading_date === prevDateStr)
       const caudalTn = curFlow && prevFlow
         ? Math.max(0, curFlow.accumulated_value - prevFlow.accumulated_value)
         : 0
@@ -318,9 +320,8 @@ export default function ConsumptionPage() {
 
   // ── Acumulados mensuales ───────────────────────────────────────────────────
 
-  // Excluir días incompletos (sin stock prev o cur) para evitar valores distorsionados
-  const refinadoDays  = dailyData.filter(d => d.isComplete && d.aceite_neutro_producido_kg > 0)
-  const biodieselDays = dailyData.filter(d => d.isComplete && d.biodiesel_kg > 0)
+  const refinadoDays  = dailyData.filter(d => d.aceite_neutro_producido_kg > 0)
+  const biodieselDays = dailyData.filter(d => d.biodiesel_kg > 0)
 
   const accAN  = refinadoDays.reduce((s, d) => s + d.aceite_neutro_producido_kg, 0)
   const accBio = biodieselDays.reduce((s, d) => s + d.biodiesel_kg, 0)
