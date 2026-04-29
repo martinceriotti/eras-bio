@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { CalendarIcon, Loader2, Factory, AlertCircle, Download } from 'lucide-react'
 import { format, subDays, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns'
@@ -528,6 +528,25 @@ export default function ProductionPage() {
                       </TableRow>
                     ))}
                   </TableBody>
+                  {biodieselRows.length > 0 && (() => {
+                    const tot = biodieselRows.filter(d => d.isComplete).reduce(
+                      (a, d) => ({ desp: a.desp + d.biodiesel_despachos, ingr: a.ingr + d.biodiesel_ingresos, prod: a.prod + d.biodiesel_producido }),
+                      { desp: 0, ingr: 0, prod: 0 }
+                    )
+                    return (
+                      <TableFooter>
+                        <TableRow className="font-semibold">
+                          <TableCell>Total</TableCell>
+                          <TableCell className="text-right">—</TableCell>
+                          <TableCell className="text-right">—</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(tot.desp)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(tot.ingr)}</TableCell>
+                          <TableCell className="text-right font-mono text-primary">{formatNumber(tot.prod)}</TableCell>
+                          <TableCell />
+                        </TableRow>
+                      </TableFooter>
+                    )
+                  })()}
                 </Table>
               </div>
             </CardContent>
@@ -582,6 +601,25 @@ export default function ProductionPage() {
                       </TableRow>
                     ))}
                   </TableBody>
+                  {aceiteNeutroRows.length > 0 && (() => {
+                    const tot = aceiteNeutroRows.filter(d => d.isComplete).reduce(
+                      (a, d) => ({ desp: a.desp + d.aceite_neutro_despachos, ingr: a.ingr + d.aceite_neutro_ingresos, caud: a.caud + d.caudalimetro_consumo, prod: a.prod + d.aceite_neutro_producido }),
+                      { desp: 0, ingr: 0, caud: 0, prod: 0 }
+                    )
+                    return (
+                      <TableFooter>
+                        <TableRow className="font-semibold">
+                          <TableCell>Total</TableCell>
+                          <TableCell className="text-right">—</TableCell>
+                          <TableCell className="text-right">—</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(tot.desp)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(tot.ingr)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(tot.caud)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(tot.prod)}</TableCell>
+                        </TableRow>
+                      </TableFooter>
+                    )
+                  })()}
                 </Table>
               </div>
             </CardContent>
@@ -632,6 +670,23 @@ export default function ProductionPage() {
                       </TableRow>
                     ))}
                   </TableBody>
+                  {gomasRows.length > 0 && (() => {
+                    const tot = gomasRows.filter(d => d.isComplete).reduce(
+                      (a, d) => ({ desp: a.desp + d.gomas_despachos, prod: a.prod + d.gomas_producida }),
+                      { desp: 0, prod: 0 }
+                    )
+                    return (
+                      <TableFooter>
+                        <TableRow className="font-semibold">
+                          <TableCell>Total</TableCell>
+                          <TableCell className="text-right">—</TableCell>
+                          <TableCell className="text-right">—</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(tot.desp)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(tot.prod)}</TableCell>
+                        </TableRow>
+                      </TableFooter>
+                    )
+                  })()}
                 </Table>
               </div>
             </CardContent>
