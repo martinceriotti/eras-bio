@@ -415,9 +415,10 @@ export default function ConsumptionPage() {
                   <div className="text-2xl font-bold">
                     {accMerma !== null ? formatNumber(accMerma, 2) + ' %' : '-'}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    (1 − AN producido / AC consumido) × 100
-                  </p>
+                  <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                    <p>AN producido: <span className="font-medium text-foreground">{formatNumber(kgToTn(accAN))} Tn</span></p>
+                    <p>AC consumido: <span className="font-medium text-foreground">{formatNumber(kgToTn(accAC))} Tn</span></p>
+                  </div>
                 </CardContent>
               </Card>
 
