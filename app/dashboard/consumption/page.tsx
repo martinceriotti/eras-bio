@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CalendarIcon, Loader2, AlertCircle, FlaskConical, Fuel, Download } from 'lucide-react'
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, subDays } from 'date-fns'
@@ -496,6 +496,18 @@ export default function ConsumptionPage() {
                         </TableRow>
                       ))}
                     </TableBody>
+                    {refinadoDays.length > 0 && (
+                      <TableFooter>
+                        <TableRow className="font-semibold">
+                          <TableCell>Total</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(kgToTn(accAC))}</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(kgToTn(accAN))}</TableCell>
+                          <TableCell className="text-right font-mono">{accMerma !== null ? formatNumber(accMerma, 2) : '-'}</TableCell>
+                          <TableCell className="text-right font-mono">{ceAcc(accSoda, anTnAcc)}</TableCell>
+                          <TableCell className="text-right font-mono">{ceAcc(accAF, anTnAcc)}</TableCell>
+                        </TableRow>
+                      </TableFooter>
+                    )}
                   </Table>
                 </div>
               </CardContent>
@@ -575,6 +587,19 @@ export default function ConsumptionPage() {
                         </TableRow>
                       ))}
                     </TableBody>
+                    {biodieselDays.length > 0 && (
+                      <TableFooter>
+                        <TableRow className="font-semibold">
+                          <TableCell>Total</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(kgToTn(accBio))}</TableCell>
+                          <TableCell className="text-right font-mono">{ceAcc(accMetanol,  bioTnAcc)}</TableCell>
+                          <TableCell className="text-right font-mono">{ceAcc(accAcitrico, bioTnAcc)}</TableCell>
+                          <TableCell className="text-right font-mono">{ceAcc(accAclorh,   bioTnAcc)}</TableCell>
+                          <TableCell className="text-right font-mono">{ceAcc(accMetilato, bioTnAcc)}</TableCell>
+                          <TableCell className="text-right font-mono">{ceAcc(accAntioxid, bioTnAcc)}</TableCell>
+                        </TableRow>
+                      </TableFooter>
+                    )}
                   </Table>
                 </div>
               </CardContent>
@@ -640,6 +665,16 @@ export default function ConsumptionPage() {
                         </TableRow>
                       ))}
                     </TableBody>
+                    {biodieselDays.length > 0 && (
+                      <TableFooter>
+                        <TableRow className="font-semibold">
+                          <TableCell>Total</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(bioTnAcc)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(accGlp, 3)}</TableCell>
+                          <TableCell className="text-right font-mono">{ceAcc(accGlp, bioTnAcc)}</TableCell>
+                        </TableRow>
+                      </TableFooter>
+                    )}
                   </Table>
                 </div>
               </CardContent>
