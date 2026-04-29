@@ -39,8 +39,8 @@ interface DailyData {
   ce_metilato: number | null
   ce_antioxidante: number | null
   // General
-  glp_kg: number
-  ce_glp: number | null                 // kg / Tn biodiesel
+  glp_tn: number
+  ce_glp: number | null                 // Tn GLP / Tn biodiesel
 }
 
 // ─── Componente principal ──────────────────────────────────────────────────────
@@ -102,24 +102,19 @@ export default function ConsumptionPage() {
         }, 0)
 
     /**
-     * Stock de GLP en kg.
-     * value_kg en la DB es calculado con calculateValueKg que retorna Tn (÷100000).
-     * Convertimos a kg: Tn × 1000. Fallback: % × capacity × density / 100 = kg
+     * Stock de GLP en Tn.
+     * Fórmula: % × capacidad(L) × densidad / 1000 = Tn
+     * Se usa r.value directamente (el % ingresado por el usuario).
      */
-    const glpKg = (readings: NonNullable<typeof stockReadings>) =>
+    const glpTn = (readings: NonNullable<typeof stockReadings>) =>
       readings
         .filter(r => r.tank?.material_type === 'glp')
         .reduce((acc, r) => {
           const tank = r.tank
-          if (r.value_kg != null && r.value_kg > 0) {
-            // value_kg para GLP está almacenado en Tn → convertir a kg
-            return acc + r.value_kg * 1000
-          }
-          // Fallback: % × capacidad(L) × densidad(kg/L) / 100
           const pct = r.value ?? 0
           const cap = tank?.capacity_liters ?? 7600
           const den = tank?.density ?? 0.51
-          return acc + (pct * cap * den) / 100
+          return acc + (pct * cap * den) / 1000
         }, 0)
 
     /** Suma peso_net de pesadas filtradas por tipo y fragmento de nombre */
@@ -155,10 +150,8 @@ export default function ConsumptionPage() {
       const isComplete = prev.length > 0 && cur.length > 0
 
       // ── Caudalímetro ─────────────────────────────────────────────────────
-      // Se usa SOLO si existe lectura del día anterior exacto (evita acumular
-      // semanas de delta cuando no hay lectura consecutiva).
       const curFlow  = flowmeterReadings?.find(f => f.reading_date === dateStr)
-      const prevFlow = flowmeterReadings?.find(f => f.reading_date === prevDateStr)
+      const prevFlow = flowmeterReadings?.filter(f => f.reading_date < dateStr).at(-1)
       const caudalTn = curFlow && prevFlow
         ? Math.max(0, curFlow.accumulated_value - prevFlow.accumulated_value)
         : 0
@@ -230,11 +223,11 @@ export default function ConsumptionPage() {
       const antIngr = weighKg(dw, 'recepcion', 'antioxidante')
       const antKg   = Math.max(0, consumed(antIni, antFin, antIngr))
 
-      // ── GLP (general) ─────────────────────────────────────────────────────
-      const glpIni    = glpKg(prev)
-      const glpFin    = glpKg(cur)
-      const glpIngr   = weighKg(dw, 'recepcion', 'glp')
-      const glpConsum = Math.max(0, consumed(glpIni, glpFin, glpIngr))
+      // ── GLP (general) — resultado en Tn ──────────────────────────────────
+      const glpIniTn    = glpTn(prev)
+      const glpFinTn    = glpTn(cur)
+      const glpIngrTn   = weighKg(dw, 'recepcion', 'glp') / 1000   // kg → Tn
+      const glpConsumTn = Math.max(0, consumed(glpIniTn, glpFinTn, glpIngrTn))
 
       // ── Consumos específicos ───────────────────────────────────────────────
       const ce = (kg: number, base: number) => base > 0 ? kg / base : null
@@ -263,8 +256,8 @@ export default function ConsumptionPage() {
         ce_metilato:          ce(metilKg, bioTn),
         ce_antioxidante:      ce(antKg,   bioTn),
         // General
-        glp_kg:  glpConsum,
-        ce_glp:  ce(glpConsum, bioTn),
+        glp_tn:  glpConsumTn,
+        ce_glp:  ce(glpConsumTn, bioTn),
       })
     }
 
@@ -311,17 +304,18 @@ export default function ConsumptionPage() {
 
   const exportGeneralCSV = () => {
     if (biodieselDays.length === 0) return
-    const header = ['Fecha','Biodiesel (Tn)','GLP (kg)','CE GLP (kg/Tn)'].join(SEP)
+    const header = ['Fecha','Biodiesel (Tn)','GLP (Tn)','CE GLP (Tn/Tn)'].join(SEP)
     const rows = biodieselDays.map(d => [
-      formatDate(d.date), nf(kgToTn(d.biodiesel_kg)), nf(d.glp_kg), nf(d.ce_glp),
+      formatDate(d.date), nf(kgToTn(d.biodiesel_kg)), nf(d.glp_tn), nf(d.ce_glp),
     ].join(SEP))
     downloadCSV(header + '\n' + rows.join('\n'), `general_${format(selectedMonth, 'yyyyMM')}.csv`)
   }
 
   // ── Acumulados mensuales ───────────────────────────────────────────────────
 
-  const refinadoDays  = dailyData.filter(d => d.aceite_neutro_producido_kg > 0)
-  const biodieselDays = dailyData.filter(d => d.biodiesel_kg > 0)
+  // Excluir días incompletos (sin stock prev o cur) para evitar valores distorsionados
+  const refinadoDays  = dailyData.filter(d => d.isComplete && d.aceite_neutro_producido_kg > 0)
+  const biodieselDays = dailyData.filter(d => d.isComplete && d.biodiesel_kg > 0)
 
   const accAN  = refinadoDays.reduce((s, d) => s + d.aceite_neutro_producido_kg, 0)
   const accBio = biodieselDays.reduce((s, d) => s + d.biodiesel_kg, 0)
@@ -338,7 +332,7 @@ export default function ConsumptionPage() {
   const accAclorh    = biodieselDays.reduce((s, d) => s + d.acido_clorhidrico_kg, 0)
   const accMetilato  = biodieselDays.reduce((s, d) => s + d.metilato_kg,          0)
   const accAntioxid  = biodieselDays.reduce((s, d) => s + d.antioxidante_kg,      0)
-  const accGlp       = biodieselDays.reduce((s, d) => s + d.glp_kg,               0)
+  const accGlp       = biodieselDays.reduce((s, d) => s + d.glp_tn,               0)
 
   const anTnAcc  = kgToTn(accAN)
   const bioTnAcc = kgToTn(accBio)
@@ -595,11 +589,11 @@ export default function ConsumptionPage() {
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">GLP</CardTitle>
-                  <CardDescription>Acumulado mensual kg / Tn biodiesel</CardDescription>
+                  <CardDescription>Acumulado mensual Tn / Tn biodiesel</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{ceAcc(accGlp, bioTnAcc)} kg/Tn</div>
-                  <p className="text-xs text-muted-foreground">{formatNumber(accGlp, 0)} kg totales</p>
+                  <div className="text-2xl font-bold">{ceAcc(accGlp, bioTnAcc)} Tn/Tn</div>
+                  <p className="text-xs text-muted-foreground">{formatNumber(accGlp, 3)} Tn totales</p>
                 </CardContent>
               </Card>
             </div>
@@ -609,7 +603,7 @@ export default function ConsumptionPage() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Detalle Diario — GLP</CardTitle>
-                  <CardDescription>kg de GLP por Tn de biodiesel producido</CardDescription>
+                  <CardDescription>Tn de GLP por Tn de biodiesel producido</CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={exportGeneralCSV} disabled={biodieselDays.length === 0}>
                   <Download className="mr-2 h-4 w-4" />
@@ -623,8 +617,8 @@ export default function ConsumptionPage() {
                       <TableRow>
                         <TableHead>Fecha</TableHead>
                         <TableHead className="text-right">Biodiesel (Tn)</TableHead>
-                        <TableHead className="text-right">GLP consumido (kg)</TableHead>
-                        <TableHead className="text-right">GLP (kg/Tn)</TableHead>
+                        <TableHead className="text-right">GLP consumido (Tn)</TableHead>
+                        <TableHead className="text-right">GLP (Tn/Tn)</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -641,7 +635,7 @@ export default function ConsumptionPage() {
                           <TableCell className="text-right font-mono">
                             {formatNumber(kgToTn(d.biodiesel_kg))}
                           </TableCell>
-                          <TableCell className="text-right font-mono">{formatNumber(d.glp_kg, 0)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(d.glp_tn, 3)}</TableCell>
                           <TableCell className="text-right font-mono">{ceCell(d.ce_glp)}</TableCell>
                         </TableRow>
                       ))}

@@ -177,7 +177,8 @@ export function StocksClient({
     materialTanks.forEach(tank => {
       const value = readings[tank.id] || 0
       if (material === 'glp') {
-        totalKg += (tank.capacity_liters || 0) * value * tank.density / 100000
+        // Fórmula: % × capacidad(L) × densidad / 1000 = Tn
+        totalKg += (tank.capacity_liters || 0) * value * tank.density / 1000
       } else if (tank.unit === 'liters') {
         totalKg += litersToKg(value, tank.density)
        } else if (tank.unit === 'bags') {
@@ -258,7 +259,10 @@ export function StocksClient({
                     <div>
                       <CardTitle>{MATERIAL_LABELS[material]}</CardTitle>
                       <CardDescription>
-                        Total: {formatNumber(kgToTn(calculateMaterialTotal(material)))} Tn ({formatNumber(calculateMaterialTotal(material))} Kg)
+                        {material === 'glp'
+                          ? `Total: ${formatNumber(calculateMaterialTotal(material), 1)} Tn`
+                          : `Total: ${formatNumber(kgToTn(calculateMaterialTotal(material)))} Tn (${formatNumber(calculateMaterialTotal(material))} Kg)`
+                        }
                       </CardDescription>
                     </div>
                   </div>
