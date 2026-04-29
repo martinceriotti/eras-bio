@@ -17,6 +17,7 @@ import { formatNumber, litersToKg, kgToTn, formatDate, type MaterialType } from 
 
 interface DailyData {
   date: string
+  isComplete: boolean              // true sólo cuando hay stock prev Y cur
   // Refinado
   aceite_crudo_consumido_kg: number
   aceite_neutro_producido_kg: number
@@ -100,6 +101,27 @@ export default function ConsumptionPage() {
           return acc + kg
         }, 0)
 
+    /**
+     * Stock de GLP en kg.
+     * value_kg en la DB es calculado con calculateValueKg que retorna Tn (÷100000).
+     * Convertimos a kg: Tn × 1000. Fallback: % × capacity × density / 100 = kg
+     */
+    const glpKg = (readings: NonNullable<typeof stockReadings>) =>
+      readings
+        .filter(r => r.tank?.material_type === 'glp')
+        .reduce((acc, r) => {
+          const tank = r.tank
+          if (r.value_kg != null && r.value_kg > 0) {
+            // value_kg para GLP está almacenado en Tn → convertir a kg
+            return acc + r.value_kg * 1000
+          }
+          // Fallback: % × capacidad(L) × densidad(kg/L) / 100
+          const pct = r.value ?? 0
+          const cap = tank?.capacity_liters ?? 7600
+          const den = tank?.density ?? 0.51
+          return acc + (pct * cap * den) / 100
+        }, 0)
+
     /** Suma peso_net de pesadas filtradas por tipo y fragmento de nombre */
     const weighKg = (
       wList: NonNullable<typeof weighings>,
@@ -128,6 +150,9 @@ export default function ConsumptionPage() {
       const cur  = stockReadings?.filter(r => r.reading_date === dateStr)     ?? []
       const prev = stockReadings?.filter(r => r.reading_date === prevDateStr) ?? []
       const dw   = weighings?.filter(w => w.date === dateStr)                 ?? []
+
+      // Día completo: sólo cuando existen lecturas prev Y cur (evita primer día con acumulado erróneo)
+      const isComplete = prev.length > 0 && cur.length > 0
 
       // ── Caudalímetro ─────────────────────────────────────────────────────
       const curFlow  = flowmeterReadings?.find(f => f.reading_date === dateStr)
@@ -204,16 +229,17 @@ export default function ConsumptionPage() {
       const antKg   = Math.max(0, consumed(antIni, antFin, antIngr))
 
       // ── GLP (general) ─────────────────────────────────────────────────────
-      const glpIni  = materialKg(prev, 'glp')
-      const glpFin  = materialKg(cur,  'glp')
-      const glpIngr = weighKg(dw, 'recepcion', 'glp')
-      const glpKg   = Math.max(0, consumed(glpIni, glpFin, glpIngr))
+      const glpIni    = glpKg(prev)
+      const glpFin    = glpKg(cur)
+      const glpIngr   = weighKg(dw, 'recepcion', 'glp')
+      const glpConsum = Math.max(0, consumed(glpIni, glpFin, glpIngr))
 
       // ── Consumos específicos ───────────────────────────────────────────────
       const ce = (kg: number, base: number) => base > 0 ? kg / base : null
 
       result.push({
         date: dateStr,
+        isComplete,
         // Refinado
         aceite_crudo_consumido_kg:  aceiteCrudoConsumidoKg,
         aceite_neutro_producido_kg: aceiteNeutroProducidoKg,
@@ -235,8 +261,8 @@ export default function ConsumptionPage() {
         ce_metilato:          ce(metilKg, bioTn),
         ce_antioxidante:      ce(antKg,   bioTn),
         // General
-        glp_kg:  glpKg,
-        ce_glp:  ce(glpKg, bioTn),
+        glp_kg:  glpConsum,
+        ce_glp:  ce(glpConsum, bioTn),
       })
     }
 
@@ -292,8 +318,9 @@ export default function ConsumptionPage() {
 
   // ── Acumulados mensuales ───────────────────────────────────────────────────
 
-  const refinadoDays  = dailyData.filter(d => d.aceite_neutro_producido_kg > 0)
-  const biodieselDays = dailyData.filter(d => d.biodiesel_kg > 0)
+  // Excluir días incompletos (sin stock prev o cur) para evitar valores distorsionados
+  const refinadoDays  = dailyData.filter(d => d.isComplete && d.aceite_neutro_producido_kg > 0)
+  const biodieselDays = dailyData.filter(d => d.isComplete && d.biodiesel_kg > 0)
 
   const accAN  = refinadoDays.reduce((s, d) => s + d.aceite_neutro_producido_kg, 0)
   const accBio = biodieselDays.reduce((s, d) => s + d.biodiesel_kg, 0)

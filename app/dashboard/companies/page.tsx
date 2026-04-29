@@ -382,7 +382,7 @@ export default function CompaniesPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={() => companyToToggle && handleToggleActive(companyToToggle)}>
-              Confirmar
+              {companyToToggle?.is_active ? 'Desactivar' : 'Activar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
