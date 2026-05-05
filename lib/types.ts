@@ -233,7 +233,7 @@ export function kgToTn(kg: number): number {
 // Función helper para calcular value_kg según el tipo de tanque
 export function calculateValueKg(tank: Tank, value: number): number {
   if (tank.material_type === 'glp') {
-    return (tank.capacity_liters || 0) * value * tank.density / 100
+    return (tank.capacity_liters || 0) * value * tank.density / 100 / 1000
   } else if (tank.unit === 'liters') {
     return litersToKg(value, tank.density)
   } else if (tank.unit === 'bags') {
