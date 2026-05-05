@@ -178,7 +178,7 @@ export function StocksClient({
       const value = readings[tank.id] || 0
       if (material === 'glp') {
         // Fórmula: % × capacidad(L) × densidad / 1000 = Tn
-        totalKg += (tank.capacity_liters || 0) * value * tank.density / 1000
+        totalKg += (tank.capacity_liters || 0) * value * tank.density / 100
       } else if (tank.unit === 'liters') {
         totalKg += litersToKg(value, tank.density)
        } else if (tank.unit === 'bags') {
