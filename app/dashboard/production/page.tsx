@@ -303,14 +303,16 @@ export default function ProductionPage() {
   const chartData = productionData
     .filter(d => d.isComplete)
     .map(d => ({
-      date:      formatDate(d.date).slice(0, 5),
-      biodiesel: d.biodiesel_producido,
-      glicerina: d.glicerina_producida,
+      date:         formatDate(d.date).slice(0, 5),
+      biodiesel:    d.biodiesel_producido,
+      glicerina:    d.glicerina_producida,
+      aceite_neutro: d.aceite_neutro_producido,
     }))
 
   const chartConfig = {
-    biodiesel: { label: 'Biodiesel',  color: 'var(--chart-1)' },
-    glicerina: { label: 'Glicerina',  color: 'var(--chart-2)' },
+    biodiesel:    { label: 'Biodiesel',     color: 'var(--chart-1)' },
+    glicerina:    { label: 'Glicerina',     color: 'var(--chart-2)' },
+    aceite_neutro: { label: 'Aceite Neutro', color: 'var(--chart-3)' },
   }
 
   // Filtros independientes por material
@@ -435,7 +437,7 @@ export default function ProductionPage() {
           <Card className="mb-6">
             <CardHeader>
               <CardTitle>Producción Diaria</CardTitle>
-              <CardDescription>Biodiesel y Glicerina producidos por día</CardDescription>
+              <CardDescription>Biodiesel, Glicerina y Aceite Neutro producidos por día</CardDescription>
             </CardHeader>
             <CardContent>
               {chartData.length === 0 ? (
@@ -465,6 +467,14 @@ export default function ProductionPage() {
                         stackId="2"
                         stroke="var(--chart-2)"
                         fill="var(--chart-2)"
+                        fillOpacity={0.6}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="aceite_neutro"
+                        stackId="3"
+                        stroke="var(--chart-3)"
+                        fill="var(--chart-3)"
                         fillOpacity={0.6}
                       />
                     </AreaChart>
