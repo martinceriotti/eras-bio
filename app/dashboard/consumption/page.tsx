@@ -40,7 +40,7 @@ interface DailyData {
   ce_antioxidante: number | null
   // General
   glp_tn: number
-  ce_glp: number | null                 // Tn GLP / Tn biodiesel
+  ce_glp: number | null                 // Tn GLP / Tn biodiesel (×1000 = Kg/Tn para display)
 }
 
 // ─── Componente principal ──────────────────────────────────────────────────────
@@ -304,7 +304,7 @@ export default function ConsumptionPage() {
 
   const exportGeneralCSV = () => {
     if (biodieselDays.length === 0) return
-    const header = ['Fecha','Biodiesel (Tn)','GLP (Tn)','CE GLP (Tn/Tn)'].join(SEP)
+    const header = ['Fecha','Biodiesel (Tn)','GLP (Kg)','CE GLP (Kg/Tn)'].join(SEP)
     const rows = biodieselDays.map(d => [
       formatDate(d.date), nf(kgToTn(d.biodiesel_kg)), nf(d.glp_tn), nf(d.ce_glp),
     ].join(SEP))
@@ -614,11 +614,11 @@ export default function ConsumptionPage() {
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">GLP</CardTitle>
-                  <CardDescription>Acumulado mensual Tn / Tn biodiesel</CardDescription>
+                  <CardDescription>Acumulado mensual Kg / Tn biodiesel</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{ceAcc(accGlp, bioTnAcc)} Tn/Tn</div>
-                  <p className="text-xs text-muted-foreground">{formatNumber(accGlp, 3)} Tn totales</p>
+                  <div className="text-2xl font-bold">{ceAcc(accGlp, bioTnAcc)} Kg/Tn</div>
+                  <p className="text-xs text-muted-foreground">{formatNumber(accGlp, 3)} Kg totales</p>
                 </CardContent>
               </Card>
             </div>
@@ -628,7 +628,7 @@ export default function ConsumptionPage() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Detalle Diario — GLP</CardTitle>
-                  <CardDescription>Tn de GLP por Tn de biodiesel producido</CardDescription>
+                  <CardDescription>Kg de GLP por Tn de biodiesel producido</CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={exportGeneralCSV} disabled={biodieselDays.length === 0}>
                   <Download className="mr-2 h-4 w-4" />
@@ -642,8 +642,8 @@ export default function ConsumptionPage() {
                       <TableRow>
                         <TableHead>Fecha</TableHead>
                         <TableHead className="text-right">Biodiesel (Tn)</TableHead>
-                        <TableHead className="text-right">GLP consumido (Tn)</TableHead>
-                        <TableHead className="text-right">GLP (Tn/Tn)</TableHead>
+                        <TableHead className="text-right">GLP consumido (Kg)</TableHead>
+                        <TableHead className="text-right">GLP (Kg/Tn)</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

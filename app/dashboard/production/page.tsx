@@ -50,6 +50,7 @@ interface DailyProductionData {
   metanol_consumido: number
   glicerina_producida: number
   isComplete: boolean
+  hasCaudalimetro: boolean
 }
 
 export default function ProductionPage() {
@@ -211,6 +212,7 @@ export default function ProductionPage() {
 
       // ── Completitud ───────────────────────────────────────────
       const isComplete = currentReadings.length > 0 && (i === 0 || previousReadings.length > 0)
+      const hasCaudalimetro = !!currentFlowmeter
 
       dailyData.push({
         date: dateStr,
@@ -232,6 +234,7 @@ export default function ProductionPage() {
         metanol_consumido:   Math.max(0, kgToTn(metanolConsumido)),
         glicerina_producida: Math.max(0, kgToTn(glicerinaProducida)),
         isComplete,
+        hasCaudalimetro,
       })
     }
 
@@ -299,9 +302,9 @@ export default function ProductionPage() {
     return acc
   }, { biodiesel: 0, aceiteNeutro: 0, gomas: 0, metanol: 0, glicerina: 0, completeDays: 0 })
 
-  // Chart data
+  // Chart data — solo días con stock completo Y lectura de caudalímetro
   const chartData = productionData
-    .filter(d => d.isComplete)
+    .filter(d => d.isComplete && d.hasCaudalimetro)
     .map(d => ({
       date:         formatDate(d.date).slice(0, 5),
       biodiesel:    d.biodiesel_producido,
