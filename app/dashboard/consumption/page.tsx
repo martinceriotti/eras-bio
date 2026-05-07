@@ -226,7 +226,7 @@ export default function ConsumptionPage() {
       // ── GLP (general) — resultado en Tn ──────────────────────────────────
       const glpIniTn    = glpTn(prev)
       const glpFinTn    = glpTn(cur)
-      const glpIngrTn   = weighKg(dw, 'recepcion', 'glp')            // misma escala que glpTn (~kg)
+      const glpIngrTn   = weighKg(dw, 'recepcion', 'glp') / 10       // kg → escala glpTn (que retorna 100×Tn, no Tn)
       const glpConsumTn = Math.max(0, consumed(glpIniTn, glpFinTn, glpIngrTn))
 
       // ── Consumos específicos ───────────────────────────────────────────────
