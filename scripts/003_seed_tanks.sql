@@ -62,7 +62,6 @@ INSERT INTO public.products (name, category, unit) VALUES
 -- Despachos
 ('Biodiesel', 'despacho', 'tn'),
 ('Glicerina', 'despacho', 'tn'),
-('Borras', 'despacho', 'tn'),
 ('Aceite Neutro', 'ambos', 'tn'),
 ('Ácidos Grasos', 'despacho', 'tn'),
 ('Gomas', 'despacho', 'tn');
