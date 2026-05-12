@@ -408,7 +408,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
                       <TableHead>Tanque</TableHead>
                       <TableHead>Código</TableHead>
                       <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="text-right">Kg</TableHead>
+                      <TableHead className="text-right">Tn</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -423,7 +423,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
                             {formatNumber(s.value)} {s.tank?.unit === 'liters' ? 'Lt' : s.tank?.unit === 'percentage' ? '%' : 'bolsas'}
                           </TableCell>
                           <TableCell className="text-right font-medium">
-                            {formatNumber(valueKg)}
+                            {formatNumber(valueKg, 2)}
                           </TableCell>
                         </TableRow>
                       )
