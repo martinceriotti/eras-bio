@@ -166,12 +166,11 @@ export default function ProductionPage() {
       const aceiteNeutroDespachos = filterWeighings('despacho', 'neutro')
       const aceiteNeutroIngresos  = filterWeighings('recepcion', 'neutro')
 
-      // Gomas: buscar por 'goma' O 'borra' en el nombre del producto
+      // Gomas
       const gomasDespachos = dayWeighings
-        .filter(w => w.type === 'despacho' && (
-          w.product?.name?.toLowerCase().includes('goma') ||
-          w.product?.name?.toLowerCase().includes('borra')
-        ))
+        .filter(w => w.type === 'despacho' &&
+          w.product?.name?.toLowerCase().includes('goma')
+        )
         .reduce((acc, w) => acc + (w.weight_net * 1000), 0)
 
       // Metanol / Glicerina
