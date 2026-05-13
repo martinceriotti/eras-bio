@@ -22,7 +22,7 @@ import {
   kgToTn,
   calculateValueKg
 } from '@/lib/types'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, startOfToday } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 interface StocksClientProps {
@@ -191,7 +191,6 @@ export function StocksClient({
     return totalKg
   }
 
-  const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
   const completedCount = Object.keys(savedReadings).length
   const totalCount = tanks.length
   const completionPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
@@ -221,7 +220,7 @@ export function StocksClient({
                 mode="single"
                 selected={selectedDate}
                 onSelect={handleDateChange}
-                disabled={(date) => date > new Date()}
+                disabled={(date) => date >= startOfToday()}
                 locale={es}
               />
             </PopoverContent>
@@ -303,7 +302,7 @@ export function StocksClient({
                                 value={inputValues[tank.id] ?? (value?.toString() ?? '')}
                                 max={tank.capacity_liters ?? undefined}
                                 onChange={(e) => handleValueChange(tank.id, e.target.value)}
-                                disabled={!canEdit || (!isToday && !isAdmin)}
+                                disabled={!canEdit}
                                 className="flex-1"
                               />
                               <span className="flex items-center text-sm text-muted-foreground min-w-[50px]">
@@ -323,7 +322,7 @@ export function StocksClient({
                               </p>
                             )}
 
-                            {canEdit && (isToday || isAdmin) && (
+                            {canEdit && (
                               <Button
                                 onClick={() => saveReading(tank)}
                                 disabled={isSaving || value === undefined || value === null || exceedsCapacity}
