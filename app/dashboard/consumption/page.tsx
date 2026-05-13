@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CalendarIcon, Loader2, AlertCircle, FlaskConical, Fuel, Download } from 'lucide-react'
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { formatNumber, litersToKg, kgToTn, formatDate, type MaterialType } from '@/lib/types'
+import { formatNumber, litersToKg, kgToTn, formatDate, consumed, type MaterialType } from '@/lib/types'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -103,8 +103,8 @@ export default function ConsumptionPage() {
 
     /**
      * Stock de GLP en Tn.
-     * Fórmula: % × capacidad(L) × densidad / 1000 = Tn
-     * Se usa r.value directamente (el % ingresado por el usuario).
+     * Fórmula: (% / 100) × capacidad(L) × densidad / 1000 = Tn
+     * Se usa r.value directamente (el % ingresado por el usuario, 0-100).
      */
     const glpTn = (readings: NonNullable<typeof stockReadings>) =>
       readings
@@ -114,7 +114,7 @@ export default function ConsumptionPage() {
           const pct = r.value ?? 0
           const cap = tank?.capacity_liters ?? 7600
           const den = tank?.density ?? 0.51
-          return acc + (pct * cap * den) / 1000
+          return acc + (pct * cap * den) / 100 / 1000
         }, 0)
 
     /** Suma peso_net de pesadas filtradas por tipo y fragmento de nombre */
@@ -130,9 +130,7 @@ export default function ConsumptionPage() {
         )
         .reduce((acc, w) => acc + w.weight_net * 1000, 0)
 
-    /** Consumo = Stock Inicial − Stock Final + Ingresos − Despachos */
-    const consumed = (ini: number, fin: number, ingresos: number, despachos = 0) =>
-      ini - fin + ingresos - despachos
+    /** Consumo = Stock Inicial − Stock Final + Ingresos − Despachos (importado de lib/types) */
 
     // ── procesar cada día ─────────────────────────────────────────────────────
 
@@ -182,12 +180,12 @@ export default function ConsumptionPage() {
       const sodaIni  = materialKg(prev, 'soda')
       const sodaFin  = materialKg(cur,  'soda')
       const sodaIngr = weighKg(dw, 'recepcion', 'soda')
-      const sodaKg   = Math.max(0, consumed(sodaIni, sodaFin, sodaIngr))
+      const sodaKg   = consumed(sodaIni, sodaFin, sodaIngr)
 
       const afIni  = materialKg(prev, 'acido_fosforico')
       const afFin  = materialKg(cur,  'acido_fosforico')
       const afIngr = weighKg(dw, 'recepcion', 'fosfórico', 'fosforico')
-      const afKg   = Math.max(0, consumed(afIni, afFin, afIngr))
+      const afKg   = consumed(afIni, afFin, afIngr)
 
       // ── Biodiesel producido ───────────────────────────────────────────────
       const bioIni  = materialKg(prev, 'biodiesel')
@@ -201,32 +199,32 @@ export default function ConsumptionPage() {
       const metIni  = materialKg(prev, 'metanol')
       const metFin  = materialKg(cur,  'metanol')
       const metIngr = weighKg(dw, 'recepcion', 'metanol')
-      const metKg   = Math.max(0, consumed(metIni, metFin, metIngr))
+      const metKg   = consumed(metIni, metFin, metIngr)
 
       const acitIni  = materialKg(prev, 'acido_citrico')
       const acitFin  = materialKg(cur,  'acido_citrico')
       const acitIngr = weighKg(dw, 'recepcion', 'cítrico', 'citrico')
-      const acitKg   = Math.max(0, consumed(acitIni, acitFin, acitIngr))
+      const acitKg   = consumed(acitIni, acitFin, acitIngr)
 
       const aclIni  = materialKg(prev, 'acido_clorhidrico')
       const aclFin  = materialKg(cur,  'acido_clorhidrico')
       const aclIngr = weighKg(dw, 'recepcion', 'clorhídrico', 'clorhidrico')
-      const aclKg   = Math.max(0, consumed(aclIni, aclFin, aclIngr))
+      const aclKg   = consumed(aclIni, aclFin, aclIngr)
 
       const metilIni  = materialKg(prev, 'metilato')
       const metilFin  = materialKg(cur,  'metilato')
       const metilIngr = weighKg(dw, 'recepcion', 'metilato')
-      const metilKg   = Math.max(0, consumed(metilIni, metilFin, metilIngr))
+      const metilKg   = consumed(metilIni, metilFin, metilIngr)
 
       const antIni  = materialKg(prev, 'antioxidante')
       const antFin  = materialKg(cur,  'antioxidante')
       const antIngr = weighKg(dw, 'recepcion', 'antioxidante')
-      const antKg   = Math.max(0, consumed(antIni, antFin, antIngr))
+      const antKg   = consumed(antIni, antFin, antIngr)
 
       // ── GLP (general) — resultado en Tn ──────────────────────────────────
       const glpIniTn    = glpTn(prev)
       const glpFinTn    = glpTn(cur)
-      const glpIngrTn   = weighKg(dw, 'recepcion', 'glp') / 10       // kg → escala glpTn (que retorna 100×Tn, no Tn)
+      const glpIngrTn   = weighKg(dw, 'recepcion', 'glp') / 1000      // kg → Tn
       const glpConsumTn = Math.max(0, consumed(glpIniTn, glpFinTn, glpIngrTn))
 
       // ── Consumos específicos ───────────────────────────────────────────────
@@ -255,9 +253,9 @@ export default function ConsumptionPage() {
         ce_acido_clorhidrico: ce(aclKg,   bioTn),
         ce_metilato:          ce(metilKg, bioTn),
         ce_antioxidante:      ce(antKg,   bioTn),
-        // General
+        // General — glp_tn en Tn, ce_glp en Kg/Tn (×1000 para display)
         glp_tn:  glpConsumTn,
-        ce_glp:  ce(glpConsumTn, bioTn),
+        ce_glp:  ce(glpConsumTn * 1000, bioTn),
       })
     }
 
@@ -306,7 +304,7 @@ export default function ConsumptionPage() {
     if (biodieselDays.length === 0) return
     const header = ['Fecha','Biodiesel (Tn)','GLP (Kg)','CE GLP (Kg/Tn)'].join(SEP)
     const rows = biodieselDays.map(d => [
-      formatDate(d.date), nf(kgToTn(d.biodiesel_kg)), nf(d.glp_tn), nf(d.ce_glp),
+      formatDate(d.date), nf(kgToTn(d.biodiesel_kg)), nf(d.glp_tn * 1000), nf(d.ce_glp),
     ].join(SEP))
     downloadCSV(header + '\n' + rows.join('\n'), `general_${format(selectedMonth, 'yyyyMM')}.csv`)
   }
@@ -617,8 +615,8 @@ export default function ConsumptionPage() {
                   <CardDescription>Acumulado mensual Kg / Tn biodiesel</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{ceAcc(accGlp, bioTnAcc)} Kg/Tn</div>
-                  <p className="text-xs text-muted-foreground">{formatNumber(accGlp, 3)} Kg totales</p>
+                  <div className="text-2xl font-bold">{ceAcc(accGlp * 1000, bioTnAcc)} Kg/Tn</div>
+                  <p className="text-xs text-muted-foreground">{formatNumber(accGlp * 1000, 3)} Kg totales</p>
                 </CardContent>
               </Card>
             </div>
@@ -660,7 +658,7 @@ export default function ConsumptionPage() {
                           <TableCell className="text-right font-mono">
                             {formatNumber(kgToTn(d.biodiesel_kg))}
                           </TableCell>
-                          <TableCell className="text-right font-mono">{formatNumber(d.glp_tn, 3)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(d.glp_tn * 1000, 3)}</TableCell>
                           <TableCell className="text-right font-mono">{ceCell(d.ce_glp)}</TableCell>
                         </TableRow>
                       ))}
@@ -670,8 +668,8 @@ export default function ConsumptionPage() {
                         <TableRow className="font-semibold">
                           <TableCell>Total</TableCell>
                           <TableCell className="text-right font-mono">{formatNumber(bioTnAcc)}</TableCell>
-                          <TableCell className="text-right font-mono">{formatNumber(accGlp, 3)}</TableCell>
-                          <TableCell className="text-right font-mono">{ceAcc(accGlp, bioTnAcc)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(accGlp * 1000, 3)}</TableCell>
+                          <TableCell className="text-right font-mono">{ceAcc(accGlp * 1000, bioTnAcc)}</TableCell>
                         </TableRow>
                       </TableFooter>
                     )}
