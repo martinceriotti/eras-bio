@@ -158,9 +158,9 @@ describe('consumo GLP — caso real 06/05/2026', () => {
   it('sin recepción registrada el consumo sería negativo (no se clampea a 0)', () => {
     const ini = [70, 80, 85, 30].reduce((acc, pct) => acc + calculateValueKg(glpTank, pct), 0)
     const fin = [84, 86, 86, 82].reduce((acc, pct) => acc + calculateValueKg(glpTank, pct), 0)
-
     const consumoTn = consumed(ini, fin, 0)
-    // Stock subió → consumo negativo (no debería clampearse)
+    // Stock subio sin recepcion -> consumo negativo (no clampea a 0)
     expect(consumoTn).toBeLessThan(0)
+    expect(consumoTn).toBeCloseTo(-2.83, 1)
   })
 })

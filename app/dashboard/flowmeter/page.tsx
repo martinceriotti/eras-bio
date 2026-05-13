@@ -30,15 +30,22 @@ export default function FlowmeterPage() {
   const [recentReadings, setRecentReadings] = useState<FlowmeterReading[]>([])
   const [currentReading, setCurrentReading] = useState<FlowmeterReading | null>(null)
   const [canEdit, setCanEdit] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [userId, setUserId] = useState<string>('')
 
   const supabase = createClient()
 
+  const todayStr = format(new Date(), 'yyyy-MM-dd')
   const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd')
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd')
 
-  // Solo se puede editar ayer, sin importar el rol
-  const isEditable = canEdit && selectedDateStr === yesterdayStr
+  // Admin: cualquier fecha pasada (no hoy ni futuro)
+  // Operario: solo ayer
+  const isEditable = canEdit && (
+    isAdmin
+      ? selectedDateStr < todayStr
+      : selectedDateStr === yesterdayStr
+  )
 
   useEffect(() => {
     const init = async () => {
@@ -56,6 +63,7 @@ export default function FlowmeterPage() {
         const role = profile?.role
         const editable = role === 'operador' || role === 'admin'
         setCanEdit(editable)
+        setIsAdmin(role === 'admin')
       }
 
       // Fetch recent readings (last 30 days)
@@ -190,7 +198,10 @@ export default function FlowmeterPage() {
                     mode="single"
                     selected={selectedDate}
                     onSelect={(date) => date && setSelectedDate(date)}
-                    disabled={(date) => format(date, 'yyyy-MM-dd') !== yesterdayStr}
+                    disabled={(date) => {
+                      const d = format(date, 'yyyy-MM-dd')
+                      return isAdmin ? d >= todayStr : d !== yesterdayStr
+                    }}
                     locale={es}
                   />
                 </PopoverContent>
@@ -222,9 +233,14 @@ export default function FlowmeterPage() {
                 No tenés permisos para editar el caudalímetro.
               </p>
             )}
-            {canEdit && selectedDateStr !== yesterdayStr && (
+            {canEdit && !isAdmin && selectedDateStr !== yesterdayStr && (
               <p className="text-sm text-muted-foreground">
-                Solo se puede cargar la lectura de ayer.
+                Solo podés cargar la lectura de ayer.
+              </p>
+            )}
+            {canEdit && isAdmin && selectedDateStr >= todayStr && (
+              <p className="text-sm text-muted-foreground">
+                No se puede cargar la lectura de hoy o fechas futuras.
               </p>
             )}
             {isEditable && (
