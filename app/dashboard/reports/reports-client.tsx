@@ -14,7 +14,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { formatNumber, formatDate, calculateValueKg, kgToTn, litersToKg } from '@/lib/types'
+import { formatNumber, formatDate, calculateValueKg, calculateValueTn, kgToTn, litersToKg } from '@/lib/types'
 import type { Product, Tank, WeighingWithProduct, StockReading, MaterialType, Company } from '@/lib/types'
 
 interface ReportsClientProps {
@@ -202,23 +202,23 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
       })
     } else if (reportType === 'weighings' && weighingsData.length > 0) {
       filename = `pesajes_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
-      csvContent = ['Fecha','Tipo','Producto','Empresa','Remito','Peso Bruto (kg)','Peso Tara (kg)','Peso Neto (Tn)'].join(SEP) + '\n'
+      csvContent = ['Fecha','Tipo','Producto','Empresa','Remito','Peso Bruto (Tn)','Peso Tara (Tn)','Peso Neto (Tn)'].join(SEP) + '\n'
       weighingsData.forEach(w => {
-        csvContent += [formatDate(w.date), w.type === 'recepcion' ? 'Recepcion' : 'Despacho', w.product?.name || '', w.company || '', w.remito_number || '', w.weight_gross ?? '', w.weight_tare ?? '', (w.weight_net / 1000).toFixed(3).replace('.', ',')].join(SEP) + '\n'
+        csvContent += [formatDate(w.date), w.type === 'recepcion' ? 'Recepcion' : 'Despacho', w.product?.name || '', w.company || '', w.remito_number || '', w.weight_gross?.toFixed(3).replace('.', ',') ?? '', w.weight_tare?.toFixed(3).replace('.', ',') ?? '', w.weight_net?.toFixed(3).replace('.', ',') ?? ''].join(SEP) + '\n'
       })
     } else if (reportType === 'stocks' && stocksData.length > 0) {
       filename = `stocks_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
-      csvContent = ['Fecha','Tanque','Codigo','Valor','Unidad','Kg'].join(SEP) + '\n'
+      csvContent = ['Fecha','Tanque','Codigo','Valor','Unidad','Tn'].join(SEP) + '\n'
       stocksData.forEach(s => {
-        const valueKg = s.tank ? calculateValueKg(s.tank, s.value) : (s.value_kg || 0)
-        csvContent += [formatDate(s.reading_date), s.tank?.name || '', s.tank?.code || '', s.value.toFixed(2).replace('.', ','), s.tank?.unit || '', valueKg.toFixed(2).replace('.', ',')].join(SEP) + '\n'
+        const valueTn = s.tank ? calculateValueTn(s.tank, s.value) : ((s.value_kg || 0) / 1000)
+        csvContent += [formatDate(s.reading_date), s.tank?.name || '', s.tank?.code || '', s.value.toFixed(2).replace('.', ','), s.tank?.unit || '', valueTn.toFixed(2).replace('.', ',')].join(SEP) + '\n'
       })
     } else if (reportType === 'company' && companyWeighingsData.length > 0) {
       const companyName = companies.find(c => c.id === selectedCompanyId)?.name || 'empresa'
       filename = `empresa_${companyName.replace(/\s+/g, '_')}_${format(dateFrom, 'yyyyMMdd')}_${format(dateTo, 'yyyyMMdd')}.csv`
-      csvContent = ['Fecha','Tipo','Producto','Remito','Chofer','Patente','Peso Bruto (kg)','Peso Tara (kg)','Peso Neto (Tn)'].join(SEP) + '\n'
+      csvContent = ['Fecha','Tipo','Producto','Remito','Chofer','Patente','Peso Bruto (Tn)','Peso Tara (Tn)','Peso Neto (Tn)'].join(SEP) + '\n'
       companyWeighingsData.forEach(w => {
-        csvContent += [formatDate(w.date), w.type === 'recepcion' ? 'Recepcion' : 'Despacho', w.product?.name || '', w.remito_number || '', w.driver || '', w.license_plate || '', w.weight_gross ?? '', w.weight_tare ?? '', (w.weight_net / 1000).toFixed(3).replace('.', ',')].join(SEP) + '\n'
+        csvContent += [formatDate(w.date), w.type === 'recepcion' ? 'Recepcion' : 'Despacho', w.product?.name || '', w.remito_number || '', w.driver || '', w.license_plate || '', w.weight_gross?.toFixed(3).replace('.', ',') ?? '', w.weight_tare?.toFixed(3).replace('.', ',') ?? '', w.weight_net?.toFixed(3).replace('.', ',') ?? ''].join(SEP) + '\n'
       })
     }
 
@@ -390,7 +390,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
                         <TableCell>{w.company || '-'}</TableCell>
                         <TableCell>{w.remito_number || '-'}</TableCell>
                         <TableCell className="text-right font-medium">
-                          {formatNumber(w.weight_net / 1000, 3)}
+                          {formatNumber(w.weight_net, 3)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -413,7 +413,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
                   </TableHeader>
                   <TableBody>
                     {stocksData.map((s) => {
-                      const valueKg = s.tank ? calculateValueKg(s.tank, s.value) : (s.value_kg || 0)
+                      const valueTn = s.tank ? calculateValueTn(s.tank, s.value) : ((s.value_kg || 0) / 1000)
                       return (
                         <TableRow key={s.id}>
                           <TableCell>{formatDate(s.reading_date)}</TableCell>
@@ -423,7 +423,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
                             {formatNumber(s.value)} {s.tank?.unit === 'liters' ? 'Lt' : s.tank?.unit === 'percentage' ? '%' : 'bolsas'}
                           </TableCell>
                           <TableCell className="text-right font-medium">
-                            {formatNumber(valueKg, 2)}
+                            {formatNumber(valueTn, 2)}
                           </TableCell>
                         </TableRow>
                       )
@@ -483,8 +483,8 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
             {reportType === 'company' && companyWeighingsData.length > 0 && (() => {
               const recepciones = companyWeighingsData.filter(w => w.type === 'recepcion')
               const despachos   = companyWeighingsData.filter(w => w.type === 'despacho')
-              const totalRecTn  = recepciones.reduce((s, w) => s + w.weight_net / 1000, 0)
-              const totalDespTn = despachos.reduce((s, w) => s + w.weight_net / 1000, 0)
+              const totalRecTn  = recepciones.reduce((s, w) => s + w.weight_net, 0)
+              const totalDespTn = despachos.reduce((s, w) => s + w.weight_net, 0)
 
               return (
                 <div className="space-y-6">
@@ -536,7 +536,7 @@ export function ReportsClient({ products, tanks }: ReportsClientProps) {
                             <TableCell>{w.driver || '-'}</TableCell>
                             <TableCell className="font-mono text-sm">{w.license_plate || '-'}</TableCell>
                             <TableCell className="text-right font-mono font-semibold">
-                              {formatNumber(w.weight_net / 1000, 3)}
+                              {formatNumber(w.weight_net, 3)}
                             </TableCell>
                           </TableRow>
                         ))}

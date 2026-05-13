@@ -242,6 +242,27 @@ export function calculateValueKg(tank: Tank, value: number): number {
   return value
 }
 
+// Función helper para calcular value en Tn según el tipo de tanque
+// GLP ya retorna Tn en calculateValueKg; el resto retorna Kg y se divide por 1000
+export function calculateValueTn(tank: Tank, value: number): number {
+  if (tank.material_type === 'glp') {
+    return calculateValueKg(tank, value) // ya está en Tn
+  }
+  return calculateValueKg(tank, value) / 1000
+}
+
+// Consumo = Stock Inicial - Stock Final + Ingresos - Despachos
+// Puede ser negativo (lectura erronea alta sin recepcion): se deja fluir
+// para que el acumulado mensual se autocorrija.
+export function consumed(
+  ini: number,
+  fin: number,
+  ingresos = 0,
+  despachos = 0
+): number {
+  return ini - fin + ingresos - despachos
+}
+
 // Función helper para formatear números
 export function formatNumber(value: number, decimals: number = 2): string {
   return value.toLocaleString('es-AR', {
