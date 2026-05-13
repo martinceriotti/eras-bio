@@ -22,7 +22,7 @@ import {
   kgToTn,
   calculateValueKg
 } from '@/lib/types'
-import { format, parseISO, startOfToday } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 interface StocksClientProps {
@@ -62,6 +62,16 @@ export function StocksClient({
   const [isLoadingDate, setIsLoadingDate] = useState(false)
 
   const supabase = createClient()
+
+  // Use string comparison (yyyy-MM-dd) to avoid server/client timezone mismatches.
+  // initialDate is already "yesterday" (computed by the server page).
+  const selectedDateStr = format(selectedDate, 'yyyy-MM-dd')
+
+  // Operators can only edit yesterday's date; admins can edit any past date
+  const canEditSelectedDate =
+    isAdmin
+      ? canEdit
+      : canEdit && selectedDateStr === initialDate
 
   // Initialize readings from database
   useEffect(() => {
@@ -115,7 +125,7 @@ export function StocksClient({
   }
 
   const saveReading = async (tank: Tank) => {
-    if (!canEdit) return
+    if (!canEditSelectedDate) return
     
     setSaving(tank.id)
     const dateStr = format(selectedDate, 'yyyy-MM-dd')
@@ -220,7 +230,10 @@ export function StocksClient({
                 mode="single"
                 selected={selectedDate}
                 onSelect={handleDateChange}
-                disabled={(date) => date >= startOfToday()}
+                disabled={(date) => {
+                  const d = format(date, 'yyyy-MM-dd')
+                  return d > initialDate || (!isAdmin && d < initialDate)
+                }}
                 locale={es}
               />
             </PopoverContent>
@@ -302,7 +315,7 @@ export function StocksClient({
                                 value={inputValues[tank.id] ?? (value?.toString() ?? '')}
                                 max={tank.capacity_liters ?? undefined}
                                 onChange={(e) => handleValueChange(tank.id, e.target.value)}
-                                disabled={!canEdit}
+                                disabled={!canEditSelectedDate}
                                 className="flex-1"
                               />
                               <span className="flex items-center text-sm text-muted-foreground min-w-[50px]">
@@ -322,7 +335,7 @@ export function StocksClient({
                               </p>
                             )}
 
-                            {canEdit && (
+                            {canEditSelectedDate && (
                               <Button
                                 onClick={() => saveReading(tank)}
                                 disabled={isSaving || value === undefined || value === null || exceedsCapacity}

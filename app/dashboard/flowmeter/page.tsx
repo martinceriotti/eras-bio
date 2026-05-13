@@ -24,24 +24,21 @@ interface FlowmeterReading {
 }
 
 export default function FlowmeterPage() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [selectedDate, setSelectedDate] = useState<Date>(subDays(new Date(), 1))
   const [accumulatedValue, setAccumulatedValue] = useState<string>('')
   const [saving, setSaving] = useState(false)
   const [recentReadings, setRecentReadings] = useState<FlowmeterReading[]>([])
   const [currentReading, setCurrentReading] = useState<FlowmeterReading | null>(null)
   const [canEdit, setCanEdit] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
   const [userId, setUserId] = useState<string>('')
 
   const supabase = createClient()
 
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd')
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd')
-  const isToday = selectedDateStr === today
 
-  // Un operador solo puede editar el día de hoy.
-  // Un admin puede editar cualquier fecha.
-  const isEditable = canEdit && (isAdmin || isToday)
+  // Solo se puede editar ayer, sin importar el rol
+  const isEditable = canEdit && selectedDateStr === yesterdayStr
 
   useEffect(() => {
     const init = async () => {
@@ -59,7 +56,6 @@ export default function FlowmeterPage() {
         const role = profile?.role
         const editable = role === 'operador' || role === 'admin'
         setCanEdit(editable)
-        setIsAdmin(role === 'admin')
       }
 
       // Fetch recent readings (last 30 days)
@@ -194,7 +190,7 @@ export default function FlowmeterPage() {
                     mode="single"
                     selected={selectedDate}
                     onSelect={(date) => date && setSelectedDate(date)}
-                    disabled={(date) => date > new Date()}
+                    disabled={(date) => format(date, 'yyyy-MM-dd') !== yesterdayStr}
                     locale={es}
                   />
                 </PopoverContent>
@@ -226,9 +222,9 @@ export default function FlowmeterPage() {
                 No tenés permisos para editar el caudalímetro.
               </p>
             )}
-            {canEdit && !isToday && !isAdmin && (
+            {canEdit && selectedDateStr !== yesterdayStr && (
               <p className="text-sm text-muted-foreground">
-                Solo podés editar la lectura del día de hoy.
+                Solo se puede cargar la lectura de ayer.
               </p>
             )}
             {isEditable && (

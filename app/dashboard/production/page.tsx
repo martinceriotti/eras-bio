@@ -415,17 +415,6 @@ export default function ProductionPage() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Metanol Consumido
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(monthlyTotals.metanol)} Tn</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
                   Glicerina Producida
                 </CardTitle>
               </CardHeader>
@@ -708,4 +697,3 @@ export default function ProductionPage() {
     </div>
   )
 }
-                      
