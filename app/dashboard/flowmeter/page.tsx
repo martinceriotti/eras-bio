@@ -10,7 +10,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { CalendarIcon, Save, Loader2, Gauge } from 'lucide-react'
-import { format, subDays, startOfToday } from 'date-fns'
+import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { formatNumber, formatDate } from '@/lib/types'
 
@@ -24,7 +24,7 @@ interface FlowmeterReading {
 }
 
 export default function FlowmeterPage() {
-  const [selectedDate, setSelectedDate] = useState<Date>(subDays(new Date(), 1))
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [accumulatedValue, setAccumulatedValue] = useState<string>('')
   const [saving, setSaving] = useState(false)
   const [recentReadings, setRecentReadings] = useState<FlowmeterReading[]>([])
@@ -35,11 +35,13 @@ export default function FlowmeterPage() {
 
   const supabase = createClient()
 
+  const today = format(new Date(), 'yyyy-MM-dd')
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd')
+  const isToday = selectedDateStr === today
 
-  // El calendario bloquea la fecha de hoy, por lo que cualquier fecha seleccionable es pasada.
-  // Un operador puede editar cualquier fecha pasada; un admin también.
-  const isEditable = canEdit
+  // Un operador solo puede editar el día de hoy.
+  // Un admin puede editar cualquier fecha.
+  const isEditable = canEdit && (isAdmin || isToday)
 
   useEffect(() => {
     const init = async () => {
@@ -192,7 +194,7 @@ export default function FlowmeterPage() {
                     mode="single"
                     selected={selectedDate}
                     onSelect={(date) => date && setSelectedDate(date)}
-                    disabled={(date) => date >= startOfToday()}
+                    disabled={(date) => date > new Date()}
                     locale={es}
                   />
                 </PopoverContent>
@@ -222,6 +224,11 @@ export default function FlowmeterPage() {
             {!canEdit && (
               <p className="text-sm text-muted-foreground">
                 No tenés permisos para editar el caudalímetro.
+              </p>
+            )}
+            {canEdit && !isToday && !isAdmin && (
+              <p className="text-sm text-muted-foreground">
+                Solo podés editar la lectura del día de hoy.
               </p>
             )}
             {isEditable && (
