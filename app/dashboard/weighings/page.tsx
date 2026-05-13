@@ -16,13 +16,13 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { CalendarIcon, Plus, Loader2, Scale, Trash2, Pencil, TrendingDown, TrendingUp, ExternalLink } from 'lucide-react'
-import { format, subDays, startOfToday } from 'date-fns'
+import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import Link from 'next/link'
 import { formatNumber, type Product, type Company, type WeighingWithProduct, type WeighingType } from '@/lib/types'
 
 export default function WeighingsPage() {
-  const [selectedDate, setSelectedDate] = useState<Date>(subDays(new Date(), 1))
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [weighings, setWeighings] = useState<WeighingWithProduct[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
@@ -251,6 +251,8 @@ export default function WeighingsPage() {
   const totalReception = receptions.reduce((acc, w) => acc + w.weight_net, 0)
   const totalDispatch = dispatches.reduce((acc, w) => acc + w.weight_net, 0)
 
+  const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -284,13 +286,13 @@ export default function WeighingsPage() {
                 mode="single"
                 selected={selectedDate}
                 onSelect={(date) => date && setSelectedDate(date)}
-                disabled={(date) => date >= startOfToday()}
+                disabled={(date) => date > new Date()}
                 locale={es}
               />
             </PopoverContent>
           </Popover>
 
-          {canEdit && (
+          {canEdit && (isToday || isAdmin) && (
             <Dialog open={dialogOpen} onOpenChange={(open) => {
               if (!open) resetForm()
               setDialogOpen(open)

@@ -12,7 +12,7 @@ export default async function DashboardLayout({
   const { profile: userProfile } = await requireAuth(supabase)
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background" suppressHydrationWarning>
       {/* Desktop Sidebar */}
       <aside className="hidden lg:block">
         <Sidebar user={userProfile} />
